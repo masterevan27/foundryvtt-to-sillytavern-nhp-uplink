@@ -1,115 +1,13 @@
-# Lancer Uplink: Foundry VTT → SillyTavern
+# FoundryVTT → SillyTavern NHP Uplink
 
-Streams live Lancer combat out of Foundry VTT into SillyTavern, so a character
-card can act as an AI GM that narrates, voices NPCs, and reacts to what actually
-happened at the table. Its replies come back into Foundry chat.
+Streams live [LANCER](https://massifpress.com/lancer) combat out of Foundry VTT
+into [SillyTavern](https://github.com/SillyTavern/SillyTavern), so a character
+card can act as an AI GM that narrates the fight, voices NPCs, and reacts to
+what actually happened at the table. Its replies come back into Foundry chat.
 
-**Everything here is already installed on this machine.** This document covers
-what was installed, how to turn it on, and how to troubleshoot it.
-
----
-
-## Architecture
-
-Three pieces, because neither application can talk to the other directly.
-
-```
-Foundry VTT (GM's browser)
-    |  POST /event          (combat events + board state)
-    |  GET  /outbound       (poll for AI narration)
-    v
-foundryvtt-to-sillytavern-nhp-uplink  <-- SillyTavern server plugin, port 5088
-    ^
-    |  SSE  /stream         (events pushed to the UI)
-    |  POST /narration      (AI reply headed back to Foundry)
-    |
-SillyTavern UI extension (browser) --> character card --> LLM
-```
-
-The server plugin deliberately runs its own listener on port **5088** rather
-than serving Foundry through SillyTavern's normal Express app. Foundry's
-requests are cross-origin, and SillyTavern's CSRF and auth middleware would
-reject them. The separate listener sidesteps that entirely.
-
-### Installed locations
-
-| Component | Path |
-|---|---|
-| Foundry module | `C:\Users\Evan\AppData\Local\FoundryVTT\Data\modules\foundryvtt-to-sillytavern-nhp-uplink` |
-| SillyTavern server plugin | `G:\Programs\SillyTavern\plugins\foundryvtt-to-sillytavern-nhp-uplink` |
-| SillyTavern UI extension | `G:\Programs\SillyTavern\data\default-user\extensions\SillyTavern-NHP-Uplink` |
-| AI GM character card | `G:\Documents\Lancer TTRPG GM Hub\AI GM\FoundryVTT_to_SillyTavern_NHP_Uplink\lancer-ai-gm.card.json` |
-
-`G:\Programs\SillyTavern\config.yaml` was changed: `enableServerPlugins` is now
-`true`. The original is backed up as `config.yaml.bak-before-foundry-bridge`.
-
-### Shared secret
-
-```
-8296e359b8294f9dbc64bdcbf10afd11
-```
-
-Already written into the plugin's `config.json`. You need to paste it into the
-Foundry module settings (step 3 below). It only guards localhost, but it stops
-any random web page you visit from posting into your game.
-
----
-
-## Turning it on
-
-### 1. Restart SillyTavern
-
-Server plugins load at startup only. On restart the console should print:
-
-```
-[nhp-uplink] Foundry listener on http://127.0.0.1:5088 (auth: on)
-[nhp-uplink] ready
-```
-
-If you don't see that, the plugin didn't load — see Troubleshooting.
-
-### 2. Import the AI GM character
-
-In SillyTavern, open the character panel, choose import, and select
-`lancer-ai-gm.card.json` from this folder. Start a chat with **OMNINET//GM**.
-
-The card tells the model that feed blocks are authoritative mechanical fact it
-must never re-roll or contradict — that instruction is what keeps it narrating
-instead of hallucinating dice results.
-
-### 3. Enable the Foundry module
-
-In your Lancer world: **Game Settings → Manage Modules → Lancer ↔ SillyTavern
-Uplink**, enable, reload. Then **Game Settings → Configure Settings → Lancer ↔
-SillyTavern Uplink** and set:
-
-- **SillyTavern uplink URL**: `http://127.0.0.1:5088`
-- **Shared secret**: the value above
-
-Everything else has a working default. On connect you'll see a notification if
-it can't reach the uplink.
-
-### 4. Check the SillyTavern side
-
-Open the Extensions panel → **FoundryVTT to SillyTavern NHP Uplink**. The status line should
-read `plugin up, Foundry listener on port 5088`. Set **Mode**:
-
-| Mode | Behaviour |
-|---|---|
-| `auto` | Injects the feed and immediately generates a reply. Hands-off. |
-| `manual` | Injects the feed; you press send when you want narration. |
-| `observe` | Logs digests to the browser console only. Good for tuning. |
-
-Start in `manual` for your first session so you can see what the AI receives
-before it starts talking.
-
----
-
-## What gets sent
-
-Events are buffered and flushed once the table has been quiet for 2.5 seconds
-(configurable), so one attack becomes one coherent digest rather than six
-fragments. A digest looks like this:
+The AI never rolls dice or decides outcomes. Foundry stays the authority on
+mechanics; the uplink hands the model a faithful, structured account of what
+occurred and asks it for fiction.
 
 ```
 [FOUNDRY VTT // TABLE FEED]
@@ -133,18 +31,194 @@ HOSTILE:
   Sunzi  HP 13/22  Str 0/1  Stress 1/1  Ev 8  EDef 10  [IMPAIRED]  @(15,9)
 ```
 
-Captured sources:
+---
+
+## Requirements
+
+| | |
+|---|---|
+| Foundry VTT | v12 or v13 |
+| Lancer system | 2.0+ (developed against 3.1.3) |
+| SillyTavern | any version with server plugin support |
+
+Server plugins are **not** enabled in SillyTavern by default — see install
+step 2.
+
+---
+
+## Architecture
+
+Three pieces, because neither application can talk to the other directly.
+
+```
+Foundry VTT (GM's browser)
+    |  POST /event          (combat events + board state)
+    |  GET  /outbound       (poll for AI narration)
+    v
+foundryvtt-to-sillytavern-nhp-uplink   <- SillyTavern server plugin, port 5088
+    ^
+    |  SSE  /stream         (events pushed to the UI)
+    |  POST /narration      (AI reply headed back to Foundry)
+    |
+SillyTavern UI extension (browser) -> character card -> LLM
+```
+
+The server plugin deliberately runs **its own HTTP listener on port 5088**
+rather than serving Foundry through SillyTavern's normal Express app. Foundry's
+requests are cross-origin, and SillyTavern's Helmet and CSRF middleware reject
+them — the preflight comes back with no `Access-Control-Allow-Origin`, so the
+browser blocks the POST before it is ever sent. The separate listener sidesteps
+that entirely.
+
+**Do not point Foundry at SillyTavern's web UI port.** That is the most common
+misconfiguration; see [Troubleshooting](#troubleshooting).
+
+---
+
+## Install
+
+### 1. Foundry module
+
+In Foundry, go to **Add-on Modules → Install Module** and paste this into the
+**Manifest URL** field:
+
+```
+https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/latest/download/module.json
+```
+
+Foundry installs the module and then re-checks that URL for updates, so you get
+an update prompt whenever a new release is published. Enable it in your Lancer
+world afterwards.
+
+<details>
+<summary>Manual install instead</summary>
+
+Copy `foundry-module/foundryvtt-to-sillytavern-nhp-uplink/` into your Foundry
+**Data** directory's `modules/` folder.
+
+Foundry shows its data path under **Configuration** on the setup screen. Note
+that if you launch with `--dataPath=<dir>`, Foundry creates a `Data` subfolder
+*inside* it, so modules live at `<dir>/Data/modules/`. Easy to get wrong when
+you have more than one install.
+
+Installing this way means no automatic update checks.
+
+</details>
+
+The SillyTavern half below still has to be copied in by hand — Foundry's
+installer only understands Foundry modules.
+
+### 2. SillyTavern server plugin
+
+Copy `st-server-plugin/foundryvtt-to-sillytavern-nhp-uplink/` into
+SillyTavern's `plugins/` folder, then create its config from the template:
+
+```bash
+cp config.example.json config.json
+```
+
+Edit `config.json` and set `secret` to a random string of your own:
+
+```json
+{
+  "port": 5088,
+  "host": "127.0.0.1",
+  "secret": "<a random string you generate>",
+  "maxQueue": 500,
+  "logEvents": false
+}
+```
+
+Then enable server plugins in SillyTavern's `config.yaml`:
+
+```yaml
+enableServerPlugins: true
+```
+
+Restart SillyTavern. Plugins load at startup only, so a browser reload will not
+do it. The console should print:
+
+```
+[nhp-uplink] Foundry listener on http://127.0.0.1:5088 (auth: on)
+[nhp-uplink] ready
+```
+
+If it says `auth: OFF`, your `secret` is empty — read [Security](#security).
+
+### 3. SillyTavern UI extension
+
+Copy `st-ui-extension/SillyTavern-NHP-Uplink/` into
+`data/<your-user>/extensions/` and reload SillyTavern in the browser.
+
+### 4. AI GM character card
+
+Import `lancer-ai-gm.card.json` through SillyTavern's character panel and start
+a chat with **OMNINET//GM**.
+
+The card instructs the model that feed blocks are authoritative mechanical fact
+it must never re-roll or contradict. That instruction is what keeps it narrating
+rather than inventing dice results — if you write your own card, carry it over.
+
+### 5. Point Foundry at the uplink
+
+**Game Settings → Configure Settings → FoundryVTT to SillyTavern NHP Uplink**:
+
+- **SillyTavern uplink URL**: `http://127.0.0.1:5088`
+- **Shared secret**: the same string you put in `config.json`
+
+Everything else has a working default.
+
+### 6. Choose a mode
+
+Extensions panel → **FoundryVTT to SillyTavern NHP Uplink**:
+
+| Mode | Behaviour |
+|---|---|
+| `auto` | Injects the feed and immediately generates a reply. Hands-off. |
+| `manual` | Injects the feed; you press send when you want narration. |
+| `observe` | Logs digests to the browser console only. Good for tuning. |
+
+Start in `manual` for your first session so you can see what the AI receives
+before it starts talking.
+
+---
+
+## Security
+
+The uplink listener binds to `127.0.0.1` and is not reachable from your network.
+The shared secret still matters: **any web page you visit can attempt requests
+to `localhost`**, and CORS on this listener is permissive by necessity, since
+Foundry's origin varies by deployment. The secret is what stops an arbitrary
+page from injecting fabricated combat events or narration into your game.
+
+- A blank or missing `secret` disables authentication entirely. The plugin logs
+  `auth: OFF` at startup when that happens.
+- `config.json` is gitignored. Never commit it — `config.example.json` is the
+  template to ship.
+- Treat the secret like a password: generate a fresh random value per install
+  rather than reusing one from documentation.
+
+---
+
+## What gets sent
+
+Events are buffered and flushed once the table has been quiet for 2.5 seconds
+(configurable), so one attack becomes a single coherent digest rather than six
+fragments.
 
 - **Lancer flows** — attacks, tech attacks, damage, structure/stress, overcharge,
   overheat, stabilize, cascade, core power, system and talent use. Hooked via
-  `lancer.postFlow.*`, which the Lancer system (3.1.3 here) exposes for modules.
+  `lancer.postFlow.*`, which the Lancer system exposes for modules.
 - **Chat cards** — the rendered card text carries the real roll numbers. Cards
   are folded into the flow event that produced them, so you get one line, not two.
-- **Resource changes** — real before/after deltas for HP, heat, structure, stress,
-  burn, overshield.
+- **Resource changes** — real before/after deltas for HP, heat, structure,
+  stress, burn and overshield.
 - **Statuses** — conditions gained and lost.
 - **Movement** — coalesced per token, reported in grid spaces.
 - **Player chat** — in-character and out-of-character.
+
+Only the **primary active GM's** client transmits, so multiple GMs will not
+produce duplicate events.
 
 ### Talking to the AI GM directly
 
@@ -157,25 +231,27 @@ In Foundry chat:
 This is whispered to GMs and reaches the AI tagged as an out-of-character
 directive, which the card is told to obey literally rather than narrate.
 
-Macro API is also available:
+A macro API is also available:
 
 ```js
-game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api.sendSceneBrief();
-game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api.sendDirective("Describe the dropship arriving.");
+const api = game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api;
+api.sendSceneBrief();
+api.sendDirective("Describe the dropship arriving.");
+api.snapshotState();   // returns the current board state object
 ```
 
 ---
 
 ## Tuning
 
-The single most useful setting is **quiet period**. Too short and the AI
-narrates mid-attack; too long and it feels laggy. 2500ms suits most tables.
-Raise it if your group rolls in fast bursts.
+The most useful setting is **quiet period**. Too short and the AI narrates
+mid-attack; too long and it feels laggy. 2500ms suits most tables — raise it if
+your group rolls in fast bursts.
 
 **Append board state** re-sends the full roster on every digest. That is what
-lets the AI reason about who is hurt and who is where, but it costs tokens on
-every turn. If your context window is tight, turn it off and use the **Insert
-board state** button when it matters.
+lets the AI reason about who is hurt and who is where, but it costs tokens every
+turn. If your context window is tight, turn it off and use the **Insert board
+state** button when it matters.
 
 **Only relay during combat** keeps the feed quiet during downtime.
 
@@ -186,49 +262,102 @@ state block repeats, and old copies are pure noise once superseded.
 
 ## Troubleshooting
 
-**Plugin didn't load.** Confirm `enableServerPlugins: true` in
-`G:\Programs\SillyTavern\config.yaml` and that you fully restarted the server
-(not just reloaded the browser).
-
-**Foundry says "uplink unreachable".** Check the listener:
+**"Uplink unreachable: Failed to fetch", with no status code.**
+Almost always the wrong port — Foundry pointed at SillyTavern's web UI instead
+of the uplink listener. SillyTavern's Express app answers the CORS preflight
+without an `Access-Control-Allow-Origin` header, so the browser blocks the
+request before sending it and the module never sees a status. Check the listener
+directly:
 
 ```bash
 curl http://127.0.0.1:5088/health
 ```
 
-Expect JSON with `"ok": true`. If the port is taken, change `port` in
-`G:\Programs\SillyTavern\plugins\foundryvtt-to-sillytavern-nhp-uplink\config.json` and update the
-Foundry setting to match.
+Expect `{"ok":true,...}`. `lastFoundryContact: null` means Foundry has never
+reached the uplink; `uiConnected` reports whether the SillyTavern extension is
+attached.
+
+**Plugin didn't load.** Confirm `enableServerPlugins: true` in `config.yaml`
+and that you fully restarted the server, not just the browser.
 
 **401 errors.** The secret in Foundry's settings doesn't match `config.json`.
 
-**Extension status says "not reachable".** The UI extension talks to the plugin
+**Extension status says "not reachable".** The UI extension reaches the plugin
 through SillyTavern itself, so this means the plugin isn't loaded — same fix as
-the first item.
+above.
 
 **Events arrive but nothing generates.** You're in `manual` or `observe` mode.
 
 **Nothing comes back to Foundry.** Check "Relay AI replies back to Foundry chat"
 in the extension, and "Receive AI-GM narration" in Foundry.
 
-**Duplicated or missing events with two GMs logged in.** Only the primary active
-GM's client transmits, by design. If that GM disconnects, reload the remaining
-GM's browser to hand over the uplink.
+**The AI keeps replying to itself.** Narration posted into Foundry is flagged so
+the module ignores it on the way back. If you see feed entries quoting the AI's
+own last message, the module is running stale code — see the next item.
+
+**Code changes don't seem to apply.** Fetch what Foundry actually serves rather
+than trusting the file you edited; with multiple installs it is easy to patch a
+copy nothing loads:
+
+```bash
+curl -s http://localhost:30001/modules/foundryvtt-to-sillytavern-nhp-uplink/scripts/uplink.js | head
+```
+
+Module JS is cached per page load, so hard-refresh (Ctrl+F5) after any change.
 
 **Verbose diagnostics.** Turn on `debug` in the Foundry module settings and
-watch the browser console; the plugin logs every event when `logEvents` is true
-in its `config.json`.
+watch the browser console; the plugin logs every event when `logEvents` is
+`true` in `config.json`.
 
 ---
 
 ## Extending it
 
-`format.js` in the UI extension holds all digest formatting as pure functions
-with no DOM or SillyTavern dependencies, so you can test changes with plain
-Node. That's the file to edit if you want different prose, more or less detail,
-or a different structure for the board state.
+`st-ui-extension/SillyTavern-NHP-Uplink/format.js` holds all digest formatting
+as pure functions with no DOM or SillyTavern dependencies, so you can test
+changes with plain Node. That is the file to edit for different prose, more or
+less detail, or a different board-state layout.
 
 To capture something not currently sent, add a hook in the Foundry module's
 `uplink.js` that calls `enqueue({ type: "your_type", ... })`, then teach
 `describeEvent` in `format.js` how to render it. Unknown event types degrade
 gracefully rather than breaking the digest.
+
+---
+
+## Releasing
+
+Releases are built by `.github/workflows/release.yml`. Push a tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow stamps `module.json` with the tag's version and a version-pinned
+`download` URL, verifies every `esmodules` entry exists and parses, packages the
+module with `module.json` at the **zip root** (Foundry rejects a nested folder),
+and attaches both files to the GitHub release.
+
+That produces the two URLs that matter:
+
+| URL | Purpose |
+|---|---|
+| `releases/latest/download/module.json` | Stable manifest — what users paste, and what Foundry polls for updates |
+| `releases/download/vX.Y.Z/module.zip` | The version-pinned payload |
+
+`manifest` always points at `latest` so update checks resolve to the newest
+release, while `download` is pinned to the tag so Foundry fetches the exact
+version that manifest describes.
+
+You can also run it from the Actions tab via **workflow_dispatch** if you need
+to republish without moving a tag.
+
+---
+
+## License
+
+GPL-3.0 — see [LICENSE](LICENSE).
+
+LANCER is a trademark of Massif Press. This is an unofficial community tool with
+no affiliation to Massif Press, Foundry Gaming LLC, or the SillyTavern project.

@@ -33,6 +33,19 @@ HOSTILE:
 
 ---
 
+## Install in Foundry
+
+Paste this **Manifest URL** into Foundry's **Add-on Modules → Install Module**:
+
+```
+https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/latest/download/module.json
+```
+
+That covers the Foundry half and enables update checks. The SillyTavern plugin
+and extension are copied in by hand — see [Install](#install) for all six steps.
+
+---
+
 ## Requirements
 
 | | |
@@ -89,6 +102,10 @@ https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/la
 Foundry installs the module and then re-checks that URL for updates, so you get
 an update prompt whenever a new release is published. Enable it in your Lancer
 world afterwards.
+
+The manifest is generated from [`foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json`](https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/blob/main/foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json) — the release
+workflow stamps it with the tag's version and download URL. Browse it there if
+you want to check compatibility before installing.
 
 <details>
 <summary>Manual install instead</summary>

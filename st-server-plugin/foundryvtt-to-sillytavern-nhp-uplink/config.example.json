@@ -1,0 +1,7 @@
+{
+  "port": 5088,
+  "host": "127.0.0.1",
+  "secret": "CHANGE-ME-generate-a-random-string",
+  "maxQueue": 500,
+  "logEvents": false
+}

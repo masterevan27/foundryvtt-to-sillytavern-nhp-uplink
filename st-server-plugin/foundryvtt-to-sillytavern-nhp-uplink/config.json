@@ -1,0 +1,7 @@
+{
+  "port": 5088,
+  "host": "127.0.0.1",
+  "secret": "8296e359b8294f9dbc64bdcbf10afd11",
+  "maxQueue": 500,
+  "logEvents": true
+}

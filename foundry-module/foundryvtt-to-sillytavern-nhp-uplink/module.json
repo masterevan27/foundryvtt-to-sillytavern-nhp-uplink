@@ -1,0 +1,33 @@
+{
+  "id": "foundryvtt-to-sillytavern-nhp-uplink",
+  "title": "FoundryVTT to SillyTavern NHP Uplink",
+  "description": "Streams Lancer combat flows, chat cards, damage/heat changes and board state from Foundry VTT to a SillyTavern instance, and posts SillyTavern's AI-GM narration back into Foundry chat.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "13"
+  },
+  "authors": [
+    {
+      "name": "FoundryVTT to SillyTavern NHP Uplink"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "lancer",
+        "type": "system",
+        "compatibility": {
+          "minimum": "2.0.0"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/uplink.js"
+  ],
+  "socket": false,
+  "url": "https://github.com/local/foundryvtt-to-sillytavern-nhp-uplink",
+  "manifest": "",
+  "download": ""
+}

@@ -255,6 +255,7 @@ const api = game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api;
 api.sendSceneBrief();
 api.sendDirective("Describe the dropship arriving.");
 api.snapshotState();   // returns the current board state object
+api.flush();           // force-send whatever is queued, without waiting
 ```
 
 ---
@@ -271,6 +272,11 @@ turn. If your context window is tight, turn it off and use the **Insert board
 state** button when it matters.
 
 **Only relay during combat** keeps the feed quiet during downtime.
+
+The extension panel also carries three buttons: **Send buffered now** flushes the
+current buffer without waiting out the quiet period, **Reconnect** re-opens the
+event stream if the plugin was restarted under it, and **Insert board state**
+drops the current roster into chat on demand.
 
 Consider a modest context limit or message trimming in SillyTavern — the board
 state block repeats, and old copies are pure noise once superseded.
@@ -308,9 +314,14 @@ above.
 **Nothing comes back to Foundry.** Check "Relay AI replies back to Foundry chat"
 in the extension, and "Receive AI-GM narration" in Foundry.
 
-**The AI keeps replying to itself.** Narration posted into Foundry is flagged so
-the module ignores it on the way back. If you see feed entries quoting the AI's
-own last message, the module is running stale code — see the next item.
+**The AI keeps replying to itself.** Narration posted into Foundry carries a flag
+that stops the module re-capturing it, so the AI's own words never come back as a
+table event. If you see feed lines quoting the AI's last message, either the
+module is running stale code (see the next item) or the flag was stripped by
+another module. The fallback guard for that case matches on the speaker's name,
+which only works while Foundry's **Narration speaker name** and the extension's
+**Speaker name in Foundry** hold the same value — both default to `AI GM`. Change
+one and you must change the other.
 
 **Code changes don't seem to apply.** Fetch what Foundry actually serves rather
 than trusting the file you edited; with multiple installs it is easy to patch a
@@ -369,6 +380,15 @@ version that manifest describes.
 
 You can also run it from the Actions tab via **workflow_dispatch** if you need
 to republish without moving a tag.
+
+The tag must point at a commit that *contains* `.github/workflows/release.yml`.
+Tagging an earlier commit produces no release at all and no error — GitHub simply
+has no workflow to run at that ref, and the manifest URL keeps returning 404.
+Check before pushing a tag:
+
+```bash
+git ls-tree -r v0.1.0 --name-only | grep release.yml
+```
 
 ---
 

@@ -1,0 +1,94 @@
+# Publishes a Foundry-installable release.
+#
+# Foundry's "Install Module" dialog fetches the manifest URL, reads `download`,
+# and unzips it into Data/modules/<id>/. So the zip must contain module.json at
+# its ROOT -- not nested inside a folder.
+#
+# Cut a release by pushing a tag:
+#     git tag v0.1.0 && git push origin v0.1.0
+#
+# Two asset URLs matter afterwards:
+#   .../releases/latest/download/module.json   <- stable, always newest (update checks)
+#   .../releases/download/v0.1.0/module.zip    <- version-pinned payload
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, without the leading v (e.g. 0.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  MODULE_DIR: foundry-module/foundryvtt-to-sillytavern-nhp-uplink
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Version '$VERSION' is not semver-like."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
+          echo "Publishing $VERSION"
+
+      - name: Stamp module.json
+        working-directory: ${{ env.MODULE_DIR }}
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ steps.v.outputs.tag }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          jq --arg v "$VERSION" \
+             --arg dl "$REPO_URL/releases/download/$TAG/module.zip" \
+             --arg mf "$REPO_URL/releases/latest/download/module.json" \
+             '.version = $v | .download = $dl | .manifest = $mf' \
+             module.json > module.stamped.json
+          mv module.stamped.json module.json
+          echo "--- stamped manifest ---"
+          cat module.json
+
+      - name: Sanity-check the manifest
+        working-directory: ${{ env.MODULE_DIR }}
+        run: |
+          jq -e '.id and .version and .manifest and .download and (.esmodules | length > 0)' module.json > /dev/null
+          for f in $(jq -r '.esmodules[]' module.json); do
+            test -f "$f" || { echo "::error::esmodule missing from package: $f"; exit 1; }
+          done
+          node --check scripts/uplink.js
+          echo "manifest and scripts OK"
+
+      - name: Build module.zip (module.json at zip root)
+        working-directory: ${{ env.MODULE_DIR }}
+        run: |
+          zip -r "$GITHUB_WORKSPACE/module.zip" . -x '*.git*'
+          echo "--- zip contents ---"
+          unzip -l "$GITHUB_WORKSPACE/module.zip"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: ${{ steps.v.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            module.zip
+            ${{ env.MODULE_DIR }}/module.json

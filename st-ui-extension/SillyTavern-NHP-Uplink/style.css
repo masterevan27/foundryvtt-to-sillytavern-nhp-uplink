@@ -1,0 +1,30 @@
+.nhp-uplink-settings label {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.9em;
+    opacity: 0.85;
+}
+
+.nhp-uplink-settings .checkbox_label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.nhp-uplink-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.nhp-uplink-status {
+    margin-top: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 0.85em;
+    opacity: 0.9;
+    word-break: break-word;
+}

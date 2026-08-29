@@ -169,12 +169,22 @@ Copy `st-ui-extension/SillyTavern-NHP-Uplink/` into
 
 ### 4. AI GM character card
 
-Import `lancer-ai-gm.card.json` through SillyTavern's character panel and start
-a chat with **OMNINET//GM**.
+Import `lancer-ai-gm.card.png` through SillyTavern's character panel and start
+a chat with **OMNINET//GM**. The card is a normal PNG with its data embedded in
+the image metadata, which is SillyTavern's native character format.
 
 The card instructs the model that feed blocks are authoritative mechanical fact
 it must never re-roll or contradict. That instruction is what keeps it narrating
 rather than inventing dice results — if you write your own card, carry it over.
+Three other things in it are worth keeping:
+
+- **Name the roll, then wait.** It is told to say what needs rolling and stop,
+  rather than narrating an outcome the feed has not reported yet.
+- **Answer whoever spoke.** The feed attributes player dialogue, so the card
+  addresses that pilot by name and treats a mid-scene speaker change as normal.
+- **Keep it short.** Output is the expensive half of the conversation. The card
+  targets one or two paragraphs for a routine beat and reserves length for
+  Structure checks, destructions and scene changes.
 
 ### 5. Point Foundry at the uplink
 
@@ -231,8 +241,14 @@ fragments.
 - **Resource changes** — real before/after deltas for HP, heat, structure,
   stress, burn and overshield.
 - **Statuses** — conditions gained and lost.
-- **Movement** — coalesced per token, reported in grid spaces.
+- **Movement** — coalesced per token, reported in grid spaces. **Off by default**:
+  it is the highest-volume, lowest-value event, and the live board state already
+  reports where every token ended up. Enable it if you want movement narrated,
+  and use **Minimum move to report** to ignore small repositioning.
 - **Player chat** — in-character and out-of-character.
+
+Non-combatant canvas tokens ("bystanders") are **off by default** and capped when
+enabled — they otherwise inflate every board state with scenery.
 
 Only the **primary active GM's** client transmits, so multiple GMs will not
 produce duplicate events.
@@ -266,20 +282,62 @@ The most useful setting is **quiet period**. Too short and the AI narrates
 mid-attack; too long and it feels laggy. 2500ms suits most tables — raise it if
 your group rolls in fast bursts.
 
-**Append board state** re-sends the full roster on every digest. That is what
-lets the AI reason about who is hurt and who is where, but it costs tokens every
-turn. If your context window is tight, turn it off and use the **Insert board
-state** button when it matters.
+**Inject live board state** keeps exactly one current roster in the prompt,
+injected at depth 0 rather than appended to each digest. That means the history
+holds one live snapshot instead of one stale snapshot per turn, and because
+depth 0 sits behind the cached prefix it does not invalidate prompt caching.
+Static defences (Armor, Evasion, E-Defense, speed, size) are omitted from the
+recurring block; the **Insert board state** button drops the full sheet when you
+want it.
 
 **Only relay during combat** keeps the feed quiet during downtime.
 
-The extension panel also carries three buttons: **Send buffered now** flushes the
-current buffer without waiting out the quiet period, **Reconnect** re-opens the
+The extension panel carries four buttons: **Send buffered now** flushes the
+current buffer without waiting out the quiet period, **Narrate now** overrides
+the significance gate and generates immediately, **Reconnect** re-opens the
 event stream if the plugin was restarted under it, and **Insert board state**
-drops the current roster into chat on demand.
+drops the full roster into chat on demand.
 
-Consider a modest context limit or message trimming in SillyTavern — the board
-state block repeats, and old copies are pure noise once superseded.
+### Cost
+
+Every generation re-sends the whole chat history, so what a session costs is
+driven by how *often* the AI speaks, not by how much Foundry sends. Three things
+keep that in check:
+
+**Only generate on narrative beats** (on by default) injects every digest but
+spends a generation only on something worth narrating — structure and stress,
+overheat, cascade, core power, a status gained, HP crossing half or hitting
+zero, a player speaking, or a GM directive. Movement, turn order and stat checks
+ride along and are narrated at the next beat. A GM directive always fires
+immediately. Two escape valves keep it honest: **Minimum gap between
+generations** is a floor between ordinary beats, and **Force a generation after
+N unnarrated events** fires anyway once enough has piled up.
+
+**Prompt caching** is the single biggest lever and costs nothing in quality —
+cache reads are a tenth of the input price, and almost all of every request is
+an identical prefix. Enable it in SillyTavern's `config.yaml`:
+
+```yaml
+claude:
+  enableSystemPromptCache: true
+  cachingAtDepth: 2
+  extendedTTL: true
+```
+
+`extendedTTL: true` buys the 1-hour cache. It costs a higher write premium but
+pays for itself here, because the significance gate deliberately leaves gaps
+longer than the 5-minute default TTL. Verify it is working on the Anthropic
+Console usage page — cache-read tokens should dominate.
+
+**Model choice.** Narration over authoritative mechanics does not need the top
+of the range; the card is explicitly told never to adjudicate. Whatever you
+pick, stick with it — caches are model-scoped, so switching models forfeits
+cache reuse.
+
+One cliff to know about: once the chat exceeds your context limit and
+SillyTavern starts dropping the oldest messages, the prefix changes on every
+request and message caching quietly stops paying. Keeping digests compact delays
+that.
 
 ---
 

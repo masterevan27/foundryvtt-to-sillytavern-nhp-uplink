@@ -23,12 +23,28 @@
  * Streams combat events out of the foundryvtt-to-sillytavern-nhp-uplink server plugin, folds them
  * into a readable Lancer combat digest, drops that into the chat, optionally
  * triggers a generation, and relays the AI GM's reply back to Foundry.
+ *
+ * Token economics: every generation re-sends the whole chat history, so the
+ * cost of a session is driven by how OFTEN we generate, not by how much Foundry
+ * sends us. Two things keep that in check:
+ *
+ *   1. A significance gate. Every digest is injected, but only narrative beats
+ *      (structure, overheat, a player speaking, a GM directive) spend a
+ *      generation. Movement and turn order ride along until the next beat.
+ *   2. Board state is injected as a single live block at depth 0 rather than
+ *      appended to each digest, so the history holds one current snapshot
+ *      instead of one stale snapshot per turn. Depth 0 also keeps it behind
+ *      the cached prefix, so it does not invalidate prompt caching.
  */
 
-import { buildDigest, formatState } from './format.js';
+import { buildDigest, formatState, weighEvents } from './format.js';
 
 const EXT_ID = 'nhpUplink';
 const API = '/api/plugins/foundryvtt-to-sillytavern-nhp-uplink';
+
+/** script.js extension_prompt_types.IN_CHAT / extension_prompt_roles.SYSTEM. */
+const IN_CHAT = 1;
+const ROLE_SYSTEM = 0;
 
 const DEFAULTS = {
     enabled: true,
@@ -42,6 +58,10 @@ const DEFAULTS = {
     relayReplies: true,
     relaySpeaker: 'AI GM',
     maxCardLines: 6,
+    // Significance gate.
+    gateGeneration: true,      // only generate on narrative beats
+    minGenerateMs: 45000,      // floor between generations
+    maxUngenerated: 6,         // ...unless this many events have piled up unnarrated
 };
 
 /* ------------------------------------------------------------------ */
@@ -84,6 +104,10 @@ let cursor = 0;
 let source = null;
 let generating = false;
 
+/** Events injected but not yet narrated, and when we last spent a generation. */
+let ungenerated = 0;
+let lastGenerateAt = 0;
+
 function resetTimers() {
     if (quietTimer) clearTimeout(quietTimer);
     if (hardTimer) clearTimeout(hardTimer);
@@ -113,6 +137,64 @@ function acceptEvents(events, state) {
     }
 }
 
+/* ------------------------------------------------------------------ */
+/* Live board state                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Keep exactly one board state in the prompt, at depth 0.
+ *
+ * Depth 0 puts it after the whole conversation, which means (a) it never goes
+ * stale in the history and (b) it sits inside the uncached tail, so refreshing
+ * it every turn costs nothing in prompt-cache hits.
+ */
+function refreshStatePrompt() {
+    const cfg = settings();
+    const c = ctx();
+    if (typeof c.setExtensionPrompt !== 'function') return;
+
+    if (!cfg.enabled || !cfg.includeState || !latestState) {
+        c.setExtensionPrompt(EXT_ID, '', IN_CHAT, 0, false, ROLE_SYSTEM);
+        return;
+    }
+
+    const text = `[FOUNDRY VTT // LIVE BOARD STATE]\n${formatState(latestState)}`;
+    c.setExtensionPrompt(EXT_ID, text, IN_CHAT, 0, false, ROLE_SYSTEM);
+}
+
+function clearStatePrompt() {
+    const c = ctx();
+    if (typeof c.setExtensionPrompt === 'function') {
+        c.setExtensionPrompt(EXT_ID, '', IN_CHAT, 0, false, ROLE_SYSTEM);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Digest emission                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Should this batch spend a generation?
+ *
+ * Urgent beats (a GM directive) always fire. Ordinary beats respect the
+ * cooldown. Everything else waits, unless enough unnarrated events have piled
+ * up that the AI would be replying to stale ground truth.
+ */
+function shouldGenerate(events, cfg) {
+    if (cfg.mode !== 'auto') return { go: false, why: 'not auto mode' };
+    if (!cfg.gateGeneration) return { go: true, why: 'gate disabled' };
+
+    const { significant, urgent, reason } = weighEvents(events);
+    if (urgent) return { go: true, why: reason };
+
+    const sinceLast = Date.now() - lastGenerateAt;
+    if (significant && sinceLast >= cfg.minGenerateMs) return { go: true, why: reason };
+    if (ungenerated >= cfg.maxUngenerated) return { go: true, why: `backlog of ${ungenerated}` };
+
+    if (significant) return { go: false, why: `${reason}, cooling down (${Math.round((cfg.minGenerateMs - sinceLast) / 1000)}s)` };
+    return { go: false, why: 'no beat' };
+}
+
 async function emitDigest() {
     resetTimers();
     const cfg = settings();
@@ -127,7 +209,7 @@ async function emitDigest() {
     const events = buffer;
     buffer = [];
 
-    const digest = buildDigest(events, latestState, cfg);
+    const digest = buildDigest(events, cfg);
     if (!digest) return;
 
     if (cfg.mode === 'observe') {
@@ -137,17 +219,26 @@ async function emitDigest() {
     }
 
     await injectMessage(digest, cfg);
-    updateStatus(`sent ${events.length} event(s) at ${new Date().toLocaleTimeString()}`);
+    refreshStatePrompt();
+    ungenerated += events.length;
 
-    if (cfg.mode === 'auto') {
-        try {
-            generating = true;
-            await ctx().executeSlashCommandsWithOptions('/trigger');
-        } catch (err) {
-            console.error('[nhp-uplink] trigger failed', err);
-        } finally {
-            generating = false;
-        }
+    const { go, why } = shouldGenerate(events, cfg);
+    if (!go) {
+        updateStatus(`held ${events.length} event(s) - ${why} (${ungenerated} unnarrated)`);
+        return;
+    }
+
+    updateStatus(`generating on ${why} at ${new Date().toLocaleTimeString()}`);
+    try {
+        generating = true;
+        lastGenerateAt = Date.now();
+        ungenerated = 0;
+        await ctx().executeSlashCommandsWithOptions('/trigger');
+    } catch (err) {
+        console.error('[nhp-uplink] trigger failed', err);
+        updateStatus(`trigger failed: ${err.message}`);
+    } finally {
+        generating = false;
     }
 }
 
@@ -185,7 +276,10 @@ function connect() {
                 const payload = JSON.parse(msg.data);
                 if (payload.type === 'hello') {
                     cursor = payload.cursor ?? 0;
-                    if (payload.state) latestState = payload.state;
+                    if (payload.state) {
+                        latestState = payload.state;
+                        refreshStatePrompt();
+                    }
                     return;
                 }
                 if (payload.type === 'events') {
@@ -276,7 +370,18 @@ const PANEL_HTML = `
       <label for="fb_maxCardLines">Max lines per chat card</label>
       <input id="fb_maxCardLines" class="text_pole" type="number" min="1" max="40">
 
-      <label class="checkbox_label"><input id="fb_includeState" type="checkbox"><span>Append board state</span></label>
+      <hr>
+      <label class="checkbox_label"><input id="fb_gateGeneration" type="checkbox"><span>Only generate on narrative beats</span></label>
+      <small>Every event is still injected. This decides which ones are worth an API call.</small>
+
+      <label for="fb_minGenerateMs">Minimum gap between generations (ms)</label>
+      <input id="fb_minGenerateMs" class="text_pole" type="number" min="0" step="5000">
+
+      <label for="fb_maxUngenerated">Force a generation after N unnarrated events</label>
+      <input id="fb_maxUngenerated" class="text_pole" type="number" min="1" max="100">
+      <hr>
+
+      <label class="checkbox_label"><input id="fb_includeState" type="checkbox"><span>Inject live board state</span></label>
       <label class="checkbox_label"><input id="fb_onlyInCombat" type="checkbox"><span>Only relay during combat</span></label>
       <label class="checkbox_label"><input id="fb_relayReplies" type="checkbox"><span>Relay AI replies back to Foundry chat</span></label>
 
@@ -285,6 +390,7 @@ const PANEL_HTML = `
 
       <div class="nhp-uplink-buttons">
         <input id="fb_flush" class="menu_button" type="button" value="Send buffered now">
+        <input id="fb_generate" class="menu_button" type="button" value="Narrate now">
         <input id="fb_reconnect" class="menu_button" type="button" value="Reconnect">
         <input id="fb_state" class="menu_button" type="button" value="Insert board state">
       </div>
@@ -303,6 +409,7 @@ function bindControls() {
         el.addEventListener('change', () => {
             settings()[key] = el.checked;
             saveSettings();
+            if (key === 'includeState' || key === 'enabled') refreshStatePrompt();
         });
     };
 
@@ -319,6 +426,7 @@ function bindControls() {
     bindCheck('fb_includeState', 'includeState');
     bindCheck('fb_onlyInCombat', 'onlyInCombat');
     bindCheck('fb_relayReplies', 'relayReplies');
+    bindCheck('fb_gateGeneration', 'gateGeneration');
 
     bindValue('fb_mode', 'mode');
     bindValue('fb_injectAs', 'injectAs');
@@ -327,10 +435,31 @@ function bindControls() {
     bindValue('fb_quietMs', 'quietMs', Number);
     bindValue('fb_maxWaitMs', 'maxWaitMs', Number);
     bindValue('fb_maxCardLines', 'maxCardLines', Number);
+    bindValue('fb_minGenerateMs', 'minGenerateMs', Number);
+    bindValue('fb_maxUngenerated', 'maxUngenerated', Number);
 
     document.getElementById('fb_flush').addEventListener('click', () => {
         resetTimers();
         emitDigest();
+    });
+
+    // Manual override for the gate: narrate whatever has piled up, right now.
+    document.getElementById('fb_generate').addEventListener('click', async () => {
+        resetTimers();
+        await emitDigest();
+        if (generating) return;
+        try {
+            generating = true;
+            lastGenerateAt = Date.now();
+            ungenerated = 0;
+            updateStatus('generating on manual request');
+            await ctx().executeSlashCommandsWithOptions('/trigger');
+        } catch (err) {
+            console.error('[nhp-uplink] manual trigger failed', err);
+            updateStatus(`trigger failed: ${err.message}`);
+        } finally {
+            generating = false;
+        }
     });
 
     document.getElementById('fb_reconnect').addEventListener('click', () => {
@@ -345,7 +474,10 @@ function bindControls() {
             updateStatus('no board state received from Foundry yet');
             return;
         }
-        await injectMessage(`[FOUNDRY VTT // BOARD STATE]\n\n${formatState(latestState)}`, settings());
+        // The manual insert is the full sheet, statics included -- it is a
+        // one-off reference drop, not the recurring block.
+        await injectMessage(`[FOUNDRY VTT // BOARD STATE]\n\n${formatState(latestState, true)}`, settings());
+        refreshStatePrompt();
         updateStatus('board state inserted');
     });
 }
@@ -371,7 +503,10 @@ jQuery(async () => {
 
     c.eventSource.on(c.event_types.CHAT_CHANGED, () => {
         buffer = [];
+        ungenerated = 0;
+        lastGenerateAt = 0;
         resetTimers();
+        clearStatePrompt();
     });
 
     connect();

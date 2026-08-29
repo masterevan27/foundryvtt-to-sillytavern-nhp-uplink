@@ -18,7 +18,8 @@
  */
 
 /**
- * Turns raw Foundry/Lancer uplink events into a readable combat digest.
+ * Turns raw Foundry/Lancer uplink events into a readable Lancer combat digest,
+ * and decides which batches are worth spending a generation on.
  *
  * Pure functions only, no SillyTavern or DOM dependencies, so this module can
  * be unit-tested outside the browser.
@@ -32,8 +33,8 @@ export const FLOW_LABEL = {
     StatRollFlow: 'Stat Check',
     StructureFlow: 'STRUCTURE DAMAGE',
     SecondaryStructureFlow: 'Structure Table',
-    OverchargeFlow: 'Overcharge',
     OverheatFlow: 'OVERHEATING',
+    OverchargeFlow: 'Overcharge',
     StabilizeFlow: 'Stabilize',
     FullRepairFlow: 'Full Repair',
     BurnFlow: 'Burn Check',
@@ -182,7 +183,16 @@ export function describeEvent(event, cfg = {}) {
     }
 }
 
-export function formatCombatant(c) {
+/* ------------------------------------------------------------------ */
+/* Board state                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A combatant line. Static defences (Armor / Evasion / E-Def, speed, size)
+ * only appear in the `full` variant, which is emitted once when combat opens.
+ * The recurring live block carries just what actually moves.
+ */
+export function formatCombatant(c, full = false) {
     const bits = [];
     if (c.hp) bits.push(`HP ${c.hp.value}${c.hp.max != null ? `/${c.hp.max}` : ''}`);
     if (c.heat) bits.push(`Heat ${c.heat.value}${c.heat.max != null ? `/${c.heat.max}` : ''}`);
@@ -190,9 +200,13 @@ export function formatCombatant(c) {
     if (c.stress) bits.push(`Stress ${c.stress.value}${c.stress.max != null ? `/${c.stress.max}` : ''}`);
     if (c.overshield) bits.push(`OS ${c.overshield}`);
     if (c.burn) bits.push(`Burn ${c.burn}`);
-    if (c.armor) bits.push(`Armor ${c.armor}`);
-    if (c.evasion != null) bits.push(`Ev ${c.evasion}`);
-    if (c.edef != null) bits.push(`EDef ${c.edef}`);
+    if (full) {
+        if (c.armor) bits.push(`Armor ${c.armor}`);
+        if (c.evasion != null) bits.push(`Ev ${c.evasion}`);
+        if (c.edef != null) bits.push(`EDef ${c.edef}`);
+        if (c.speed != null) bits.push(`Spd ${c.speed}`);
+        if (c.size != null) bits.push(`Size ${c.size}`);
+    }
 
     const statuses = c.statuses?.length ? `  [${c.statuses.join(', ').toUpperCase()}]` : '';
     const pos = c.position ? `  @(${c.position.x},${c.position.y})` : '';
@@ -204,7 +218,7 @@ export function formatCombatant(c) {
     return `  ${c.name}${flagStr}  ${bits.join('  ')}${statuses}${pos}`;
 }
 
-export function formatState(state) {
+export function formatState(state, full = false) {
     if (!state) return '';
     const header = state.inCombat
         ? `BOARD STATE - Round ${state.round ?? '?'}${state.activeCombatant ? `, active: ${state.activeCombatant}` : ''}`
@@ -223,16 +237,87 @@ export function formatState(state) {
     for (const [key, title] of [['friendly', 'ALLIED'], ['hostile', 'HOSTILE'], ['neutral', 'NEUTRAL'], ['other', 'OTHER']]) {
         if (!groups[key].length) continue;
         lines.push(`${title}:`);
-        for (const c of groups[key]) lines.push(formatCombatant(c));
+        for (const c of groups[key]) lines.push(formatCombatant(c, full));
     }
     return lines.join('\n');
 }
 
-export function buildDigest(events, state, cfg = {}) {
+/* ------------------------------------------------------------------ */
+/* Significance                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Flows that are a narrative beat in their own right. */
+const SIGNIFICANT_FLOWS = new Set([
+    'StructureFlow', 'SecondaryStructureFlow', 'OverheatFlow', 'CascadeFlow',
+    'OverchargeFlow', 'CoreActiveFlow', 'StabilizeFlow', 'FullRepairFlow', 'BondPowerFlow',
+]);
+
+/** Event types that always deserve a reply. */
+const SIGNIFICANT_TYPES = new Set([
+    'combat_start', 'combat_end', 'gm_directive', 'scene_brief', 'chat',
+]);
+
+/** The GM talking to the AI directly. Never make these wait out a cooldown. */
+const URGENT_TYPES = new Set(['gm_directive', 'scene_brief']);
+
+function crossesThreshold(change) {
+    if (change.resource === 'structure' || change.resource === 'stress') return true;
+    if (change.resource !== 'hp') return false;
+    if (typeof change.to !== 'number') return false;
+    if (change.to <= 0) return true;
+    if (typeof change.max !== 'number' || !change.max) return false;
+    // Dropping through half health is a beat; chip damage above it is not.
+    return typeof change.from === 'number' && change.from > change.max / 2 && change.to <= change.max / 2;
+}
+
+/**
+ * Decide whether a batch of events is worth a generation.
+ *
+ * Everything gets injected either way -- this only governs whether we spend a
+ * full-context round trip narrating it now, or let it ride until the next beat.
+ *
+ * @returns {{significant: boolean, urgent: boolean, reason: string|null}}
+ */
+export function weighEvents(events) {
+    let reason = null;
+
+    for (const e of events) {
+        if (URGENT_TYPES.has(e.type)) return { significant: true, urgent: true, reason: e.type };
+
+        if (SIGNIFICANT_TYPES.has(e.type)) {
+            reason ??= e.type;
+            continue;
+        }
+
+        if (e.type === 'flow' && SIGNIFICANT_FLOWS.has(e.flow)) {
+            reason ??= e.flow;
+            continue;
+        }
+
+        if (e.type === 'status_change' && e.gained) {
+            reason ??= `status:${e.status}`;
+            continue;
+        }
+
+        if (e.type === 'resource_change' && (e.changes ?? []).some(crossesThreshold)) {
+            reason ??= `resource:${e.actor ?? 'unknown'}`;
+        }
+    }
+
+    return { significant: !!reason, urgent: false, reason };
+}
+
+/* ------------------------------------------------------------------ */
+/* Digest                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Render events as a feed block. Board state is deliberately NOT included --
+ * it is injected separately as a single live block, so the chat history does
+ * not accumulate one stale snapshot per turn.
+ */
+export function buildDigest(events, cfg = {}) {
     const described = events.map((e) => describeEvent(e, cfg)).filter(Boolean);
     if (!described.length) return null;
-
-    const chunks = ['[FOUNDRY VTT // TABLE FEED]', '', described.join('\n')];
-    if (cfg.includeState && state) chunks.push('', formatState(state));
-    return chunks.join('\n');
+    return ['[FOUNDRY VTT // TABLE FEED]', '', described.join('\n')].join('\n');
 }

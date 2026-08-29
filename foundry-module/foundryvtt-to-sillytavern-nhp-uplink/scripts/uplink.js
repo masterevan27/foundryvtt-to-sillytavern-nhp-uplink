@@ -1,3 +1,22 @@
+/*
+ * FoundryVTT to SillyTavern NHP Uplink
+ * Copyright (C) 2026 masterevan27
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 /**
  * FoundryVTT to SillyTavern NHP Uplink
  *
@@ -71,7 +90,27 @@ function htmlToText(html) {
   div.querySelectorAll("script, style").forEach((n) => n.remove());
   // Preserve card structure a little so the digest stays readable.
   div.querySelectorAll("br, hr, div, p, li, tr").forEach((n) => n.append("\n"));
-  return div.textContent.replace(/[ \t ]+/g, " ").replace(/\n\s*\n\s*/g, "\n").trim();
+  return coalesceCardText(div.textContent);
+}
+
+/**
+ * Lancer builds one visual row out of several inline elements: a weapon's
+ * threat // range // damage becomes five text nodes, and a target's name and
+ * its HIT badge become two. Flattened naively that is six lines of weapon tags
+ * before the roll is even mentioned, and the digest's per-card line budget then
+ * cuts the card off before the number the GM actually needs. Glue runt
+ * fragments back onto the line above so a truncated card still shows the roll.
+ */
+function coalesceCardText(raw) {
+  const out = [];
+  for (const piece of String(raw ?? "").split("\n")) {
+    const line = piece.replace(/[\s\u00a0]+/g, " ").trim();
+    if (!line) continue;
+    const prev = out.length ? out[out.length - 1] : null;
+    if (prev !== null && line.length <= 4 && prev.length <= 72) out[out.length - 1] = `${prev} ${line}`;
+    else out.push(line);
+  }
+  return out.join("\n").trim();
 }
 
 function escapeHtml(str) {
@@ -158,6 +197,83 @@ function prune(value, depth = 0) {
   }
 
   return undefined;
+}
+
+/* ------------------------------------------------------------------ */
+/* Authoritative roll extraction                                       */
+/* ------------------------------------------------------------------ */
+
+function tokenName(token) {
+  return token?.name ?? token?.document?.name ?? null;
+}
+
+/**
+ * Lancer keeps the real numbers on the flow's state.data, so read them from
+ * there instead of hoping they survive the card's HTML -> text flattening.
+ *
+ * Shapes (Lancer system v3.1): attack_results[] = {roll, tt};
+ * hit_results[] = {target, total, hit, crit, usedLockOn}, where total is a
+ * zero-padded string ("07"); targets[] = {target, damage: [{type, amount}],
+ * hit, crit, ap}; damage_results[] = {roll, tt, d_type, target};
+ * result = {roll, tt} for stat, structure and stress rolls.
+ */
+function rollSummary(data) {
+  if (!data || typeof data !== "object") return undefined;
+  const out = {};
+
+  const attackTotals = [];
+  for (const r of data.attack_results ?? []) {
+    if (typeof r?.roll?.total === "number") attackTotals.push(r.roll.total);
+  }
+  if (attackTotals.length) out.attackTotals = attackTotals;
+
+  const targets = [];
+  for (const h of data.hit_results ?? []) {
+    const total = Number(h?.total);
+    targets.push({
+      target: tokenName(h?.target),
+      total: Number.isFinite(total) ? total : null,
+      hit: !!h?.hit,
+      crit: !!h?.crit,
+      usedLockOn: !!h?.usedLockOn
+    });
+  }
+  if (targets.length) out.targets = targets;
+  if (typeof data.defense === "string") out.defense = data.defense;
+
+  const damage = [];
+  for (const t of data.targets ?? []) {
+    const parts = (t?.damage ?? [])
+      .filter((d) => typeof d?.amount === "number")
+      .map((d) => ({ type: d.type ?? null, amount: d.amount }));
+    if (!parts.length) continue;
+    damage.push({
+      target: tokenName(t?.target),
+      hit: !!t?.hit,
+      crit: !!t?.crit,
+      ap: !!t?.ap,
+      parts,
+      total: parts.reduce((sum, d) => sum + d.amount, 0)
+    });
+  }
+  if (!damage.length) {
+    // An untargeted damage roll only ever populates damage_results.
+    for (const d of data.damage_results ?? []) {
+      if (typeof d?.roll?.total !== "number") continue;
+      damage.push({
+        target: tokenName(d?.target),
+        parts: [{ type: d?.d_type ?? null, amount: d.roll.total }],
+        total: d.roll.total
+      });
+    }
+  }
+  if (damage.length) out.damage = damage;
+
+  // Stat checks, structure and stress rolls carry a single result instead.
+  const single = data.result?.total ?? data.result?.roll?.total ?? data.roll?.total;
+  if (typeof single === "number") out.total = single;
+
+  return Object.keys(out).length ? out : undefined;
 }
 
 /* ------------------------------------------------------------------ */
@@ -324,24 +440,41 @@ const FLOW_NAMES = [
   "SimpleTextFlow", "SimpleHTMLFlow"
 ];
 
-/** Recently emitted flow events, so a chat card can attach itself to its flow. */
-const recentFlows = [];
+/**
+ * Chat cards already queued, so a flow can absorb the card it printed.
+ *
+ * Printing the card is a step *inside* the flow, so createChatMessage fires
+ * before lancer.postFlow -- the card is always the older event, never the
+ * newer one. Pairing them the other way round never matched, which is why
+ * every attack shipped as a bare flow line plus a detached card.
+ */
+const recentCards = [];
 
-function rememberFlow(event, actorId) {
-  recentFlows.push({ event, actorId, ts: Date.now() });
-  while (recentFlows.length > 12) recentFlows.shift();
+function rememberCard(event, actorId, speakerName) {
+  recentCards.push({ event, actorId, speakerName, ts: Date.now(), claimed: false });
+  while (recentCards.length > 12) recentCards.shift();
 }
 
-function claimFlowForCard(actorId, speakerName) {
+function absorbCardIntoFlow(flowEvent, actorId) {
   const now = Date.now();
-  for (let i = recentFlows.length - 1; i >= 0; i--) {
-    const entry = recentFlows[i];
-    if (now - entry.ts > 2500) continue;
-    if (entry.event.rendered) continue;
-    if (actorId && entry.actorId && actorId === entry.actorId) return entry.event;
-    if (!actorId && speakerName && entry.event.actor === speakerName) return entry.event;
+  for (let i = recentCards.length - 1; i >= 0; i--) {
+    const entry = recentCards[i];
+    if (entry.claimed || now - entry.ts > 2500) continue;
+    const sameActor = actorId && entry.actorId
+      ? actorId === entry.actorId
+      : !!flowEvent.actor && entry.speakerName === flowEvent.actor;
+    if (!sameActor) continue;
+    entry.claimed = true;
+    flowEvent.rendered = entry.event.text;
+    if (entry.event.rollTotals) flowEvent.rollTotals = entry.event.rollTotals;
+    // Drop the standalone card so the digest does not carry it twice. If the
+    // batch already flushed, the card is no longer in the queue; the flow still
+    // carries the numbers, so the duplicate is harmless.
+    const idx = queue.indexOf(entry.event);
+    if (idx !== -1) queue.splice(idx, 1);
+    debug("absorbed card into flow", flowEvent.flow);
+    return;
   }
-  return null;
 }
 
 function onFlow(flowName, flow, success) {
@@ -358,11 +491,12 @@ function onFlow(flowName, flow, success) {
     actorType: actor?.type ?? null,
     item: item?.name ?? null,
     itemType: item?.type ?? null,
+    rolls: rollSummary(state.data),
     data: prune(state.data) ?? undefined
   };
 
   const emitted = enqueue(event);
-  if (emitted) rememberFlow(emitted, actor?.id ?? null);
+  if (emitted) absorbCardIntoFlow(emitted, actor?.id ?? null);
 }
 
 /* ------------------------------------------------------------------ */
@@ -398,20 +532,16 @@ function onChatMessage(msg) {
 
   if (isLancerCard) {
     if (!setting("sendChatCards")) return;
-    // Prefer folding the rendered card into the flow event it belongs to.
-    const owner = claimFlowForCard(actor?.id ?? null, speakerName);
-    if (owner) {
-      owner.rendered = text;
-      if (msg.rolls?.length) owner.rollTotals = msg.rolls.map((r) => r.total);
-      debug("attached card to flow", owner.flow);
-      return;
-    }
-    enqueue({
+    const rollTotals = (msg.rolls ?? []).map((r) => r.total).filter((n) => typeof n === "number");
+    const emitted = enqueue({
       type: "chat_card",
       actor: speakerName,
       text,
-      rollTotals: msg.rolls?.length ? msg.rolls.map((r) => r.total) : undefined
+      rollTotals: rollTotals.length ? rollTotals : undefined
     });
+    // The flow that printed this card has not fired postFlow yet; when it does,
+    // absorbCardIntoFlow folds this event into it.
+    if (emitted) rememberCard(emitted, actor?.id ?? null, speakerName);
     return;
   }
 

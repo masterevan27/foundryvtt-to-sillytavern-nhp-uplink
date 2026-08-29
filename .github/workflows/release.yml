@@ -140,6 +140,7 @@ jobs:
       - name: Sanity-check the manifests
         env:
           VERSION: ${{ steps.v.outputs.version }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           cd "$GITHUB_WORKSPACE/$MODULE_DIR"
           jq -e '.id and .version and .manifest and .download and (.esmodules | length > 0)' module.json > /dev/null
@@ -149,11 +150,10 @@ jobs:
           node --check scripts/uplink.js
 
           cd "$GITHUB_WORKSPACE/$ST_EXT_DIR"
-          jq -e --arg v "$VERSION" \
-             '.version == $v
-              and (.homePage | test("^https://github\.com/[^/]+/[^/]+$"))
+          jq -e --arg v "$VERSION" --arg home "$REPO_URL" \
+             '.version == $v and .homePage == $home
               and .js and .css and .display_name' manifest.json > /dev/null \
-            || { echo "::error::$ST_EXT_DIR/manifest.json failed validation (version, homePage, js, css)"; exit 1; }
+            || { echo "::error::$ST_EXT_DIR/manifest.json failed validation. Expected version $VERSION and homePage $REPO_URL, got:"; jq -c '{version, homePage, js, css, display_name}' manifest.json; exit 1; }
           test -f "$(jq -r '.js' manifest.json)"  || { echo "::error::manifest js file missing"; exit 1; }
           test -f "$(jq -r '.css' manifest.json)" || { echo "::error::manifest css file missing"; exit 1; }
           node --check "$(jq -r '.js' manifest.json)"

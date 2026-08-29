@@ -104,8 +104,8 @@ an update prompt whenever a new release is published. Enable it in your Lancer
 world afterwards.
 
 The manifest is generated from [`foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json`](https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/blob/main/foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json) — the release
-workflow stamps it with the tag's version and download URL. Browse it there if
-you want to check compatibility before installing.
+workflow stamps it with the release version and download URL before attaching
+it. Browse it there if you want to check compatibility before installing.
 
 <details>
 <summary>Manual install instead</summary>
@@ -413,17 +413,29 @@ gracefully rather than breaking the digest.
 
 ## Releasing
 
-Releases are built by `.github/workflows/release.yml`. Push a tag:
+Releases are built by `.github/workflows/release.yml`. Cut one from the
+**Actions** tab — **Release → Run workflow** — and enter the version without the
+leading `v` (e.g. `0.1.5`).
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
+CI does the version bookkeeping for you. It stamps the version into both
+manifests, commits that to `main`, tags **that** commit, and publishes. The tag
+therefore always points at a tree that declares its own version.
 
-The workflow stamps `module.json` with the tag's version and a version-pinned
-`download` URL, verifies every `esmodules` entry exists and parses, packages the
-module with `module.json` at the **zip root** (Foundry rejects a nested folder),
-and attaches both files to the GitHub release.
+The two manifests are consumed differently, which is why the workflow treats
+them differently:
+
+| File | How users get it | Handled by |
+|---|---|---|
+| `foundry-module/…/module.json` | Fetched as a **release asset** by Foundry | Stamped in the runner and attached to the release |
+| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | Stamped **and committed to `main`** |
+
+Because the SillyTavern extension is copied out of a clone rather than
+downloaded from a release, stamping it only inside a build artifact would reach
+nobody — so that bump has to land as a real commit.
+
+The run also verifies every `esmodules` entry exists and parses, checks the
+extension manifest's `version`, `homePage`, `js` and `css`, and packages the
+module with `module.json` at the **zip root** (Foundry rejects a nested folder).
 
 That produces the two URLs that matter:
 
@@ -436,16 +448,27 @@ That produces the two URLs that matter:
 release, while `download` is pinned to the tag so Foundry fetches the exact
 version that manifest describes.
 
-You can also run it from the Actions tab via **workflow_dispatch** if you need
-to republish without moving a tag.
+### Tagging by hand
 
-The tag must point at a commit that *contains* `.github/workflows/release.yml`.
-Tagging an earlier commit produces no release at all and no error — GitHub simply
-has no workflow to run at that ref, and the manifest URL keeps returning 404.
-Check before pushing a tag:
+Pushing a tag still triggers a release, but CI can then only *verify* the
+version — a tag has already frozen the tree, so nothing can be bumped into it.
+Bump `manifest.json` yourself first, in the commit you intend to tag:
 
 ```bash
-git ls-tree -r v0.1.0 --name-only | grep release.yml
+git tag v0.1.5
+git push origin v0.1.5
+```
+
+If the manifest does not already declare the tag's version, the build fails
+rather than shipping a wrong number.
+
+The tag must also point at a commit that *contains*
+`.github/workflows/release.yml`. Tagging an earlier commit produces no release
+at all and no error — GitHub simply has no workflow to run at that ref, and the
+manifest URL keeps returning 404. Check before pushing:
+
+```bash
+git ls-tree -r v0.1.5 --name-only | grep release.yml
 ```
 
 ---

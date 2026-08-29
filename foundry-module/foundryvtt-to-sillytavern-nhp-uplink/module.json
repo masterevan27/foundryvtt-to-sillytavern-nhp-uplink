@@ -2,7 +2,7 @@
   "id": "foundryvtt-to-sillytavern-nhp-uplink",
   "title": "FoundryVTT to SillyTavern NHP Uplink",
   "description": "Streams Lancer combat flows, chat cards, damage/heat changes and board state from Foundry VTT to a SillyTavern instance, and posts SillyTavern's AI-GM narration back into Foundry chat.",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "compatibility": {
     "minimum": "12",
     "verified": "13"

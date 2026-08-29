@@ -50,9 +50,12 @@ and extension are copied in by hand — see [Install](#install) for all six step
 
 | | |
 |---|---|
-| Foundry VTT | v12 or v13 |
-| Lancer system | 2.0+ (developed against 3.1.3) |
-| SillyTavern | any version with server plugin support |
+| [Foundry VTT](https://foundryvtt.com/) | v12 or v13 |
+| [Lancer system](https://foundryvtt.com/packages/lancer) | 2.0+ (developed against 3.1.3) |
+| [SillyTavern](https://github.com/SillyTavern/SillyTavern) | any version with server plugin support |
+
+The Lancer system only supports Foundry VTT up to **v13** at the moment, so v13
+is the practical ceiling for this module even if a newer Foundry is available.
 
 Server plugins are **not** enabled in SillyTavern by default — see install
 step 2.
@@ -156,8 +159,8 @@ Restart SillyTavern. Plugins load at startup only, so a browser reload will not
 do it. The console should print:
 
 ```
-[nhp-uplink] Foundry listener on http://127.0.0.1:5088 (auth: on)
-[nhp-uplink] ready
+[foundryvtt-to-sillytavern-nhp-uplink] Foundry listener on http://127.0.0.1:5088 (auth: on)
+[foundryvtt-to-sillytavern-nhp-uplink] ready
 ```
 
 If it says `auth: OFF`, your `secret` is empty — read [Security](#security).
@@ -421,17 +424,26 @@ CI does the version bookkeeping for you. It stamps the version into both
 manifests, commits that to `main`, tags **that** commit, and publishes. The tag
 therefore always points at a tree that declares its own version.
 
-The two manifests are consumed differently, which is why the workflow treats
-them differently:
+The two manifests are consumed differently, which is why the workflow stamps
+them at different points:
 
-| File | How users get it | Handled by |
+| File | How users get it | Stamped with |
 |---|---|---|
-| `foundry-module/…/module.json` | Fetched as a **release asset** by Foundry | Stamped in the runner and attached to the release |
-| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | Stamped **and committed to `main`** |
+| `foundry-module/…/module.json` | Fetched as a **release asset** by Foundry | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
+| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | `version` and `homePage` |
 
-Because the SillyTavern extension is copied out of a clone rather than
-downloaded from a release, stamping it only inside a build artifact would reach
-nobody — so that bump has to land as a real commit.
+Both stamped files are then committed to `main` in the same `release: vX.Y.Z`
+commit, and that commit is what gets tagged. The extension manifest *has* to be
+committed — it is copied out of a clone rather than downloaded from a release,
+so stamping it only inside a build artifact would reach nobody.
+
+`module.json` is committed alongside it mostly so the repo does not contradict
+the release it just cut. Note the consequence: between releases, the repo copy's
+`download` points at the previous tag's `module.zip`. That is consistent with the
+`version` beside it, and the next release re-stamps both — but it does mean the
+in-repo `module.json` is a snapshot of the last release, not a `latest`-tracking
+manifest. Users should paste the release-asset URL below, never a raw link to
+the repo copy.
 
 The run also verifies every `esmodules` entry exists and parses, checks the
 extension manifest's `version`, `homePage`, `js` and `css`, and packages the

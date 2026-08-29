@@ -9,6 +9,12 @@ The AI never rolls dice or decides outcomes. Foundry stays the authority on
 mechanics; the uplink hands the model a faithful, structured account of what
 occurred and asks it for fiction.
 
+**Why "NHP Uplink"?** In LANCER, an *NHP* — Non-Human Person — is the setting's
+term for a machine intelligence: a paracausal mind run inside a shackled cage,
+riding along with a pilot and talking back. That is exactly the role the AI plays
+here, so the module is the *uplink* that carries the table's combat down the wire
+to it and its narration back up.
+
 ```
 [FOUNDRY VTT // TABLE FEED]
 

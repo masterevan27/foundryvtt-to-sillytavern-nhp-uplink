@@ -1,9 +1,9 @@
 # Publishes a Foundry-installable release.
 #
 # Cut a release from the Actions tab: Release -> Run workflow -> enter the
-# version (e.g. 0.1.5). CI stamps that version into both manifests, commits it
-# to main, tags that commit, and publishes. The tag therefore always points at
-# a tree that declares its own version.
+# version (e.g. 0.1.5). CI stamps that version into both manifests, validates
+# everything, and only then commits to main, tags that commit, and publishes.
+# The tag therefore always points at a tree that declares its own version.
 #
 # Pushing a tag by hand still works, but CI can only VERIFY the versions in that
 # case -- a tag has already frozen the tree, so nothing can be bumped into it.
@@ -69,21 +69,23 @@ jobs:
           echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
           echo "Publishing $VERSION"
 
-      # Dispatch path: bump -> commit -> tag. Tags pushed with GITHUB_TOKEN do
-      # not start another workflow run, so this cannot loop back into the
-      # `push: tags` trigger above.
-      - name: Bump manifests, commit and tag
+      - name: Check the tag is free
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists. Pick a new version, or delete the tag first."
+            exit 1
+          fi
+          echo "$TAG is free"
+
+      - name: Stamp the extension manifest
         if: github.event_name == 'workflow_dispatch'
         env:
           VERSION: ${{ steps.v.outputs.version }}
-          TAG: ${{ steps.v.outputs.tag }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "::error::Tag $TAG already exists. Pick a new version."
-            exit 1
-          fi
-
           jq --arg v "$VERSION" --arg home "$REPO_URL" \
              '.version = $v | .homePage = $home' \
              "$ST_EXT_DIR/manifest.json" > st.tmp
@@ -93,33 +95,8 @@ jobs:
              "$MODULE_DIR/module.json" > mod.tmp
           mv mod.tmp "$MODULE_DIR/module.json"
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json"
-          if git diff --staged --quiet; then
-            echo "Manifests already declare $VERSION; tagging the current commit."
-          else
-            git commit -m "release: $TAG"
-            git push origin HEAD:main
-          fi
-          git tag "$TAG"
-          git push origin "$TAG"
           echo "--- stamped extension manifest ---"
           cat "$ST_EXT_DIR/manifest.json"
-
-      # Tag-push path: the tree is frozen, so all we can do is check it.
-      - name: Verify the extension manifest matches the tag
-        if: github.event_name == 'push'
-        env:
-          VERSION: ${{ steps.v.outputs.version }}
-        run: |
-          FOUND=$(jq -r '.version' "$ST_EXT_DIR/manifest.json")
-          if [ "$FOUND" != "$VERSION" ]; then
-            echo "::error::$ST_EXT_DIR/manifest.json declares '$FOUND' but the tag says '$VERSION'."
-            echo "::error::Bump it and re-tag, or cut releases from the Actions tab (Run workflow) and CI will do it for you."
-            exit 1
-          fi
-          echo "extension manifest declares $VERSION, matching the tag"
 
       - name: Stamp module.json
         working-directory: ${{ env.MODULE_DIR }}
@@ -137,6 +114,8 @@ jobs:
           echo "--- stamped manifest ---"
           cat module.json
 
+      # Everything here must pass BEFORE anything is committed, tagged or
+      # published -- a failure at this point leaves the repo untouched.
       - name: Sanity-check the manifests
         env:
           VERSION: ${{ steps.v.outputs.version }}
@@ -151,13 +130,38 @@ jobs:
 
           cd "$GITHUB_WORKSPACE/$ST_EXT_DIR"
           jq -e --arg v "$VERSION" --arg home "$REPO_URL" \
-             '.version == $v and .homePage == $home
-              and .js and .css and .display_name' manifest.json > /dev/null \
-            || { echo "::error::$ST_EXT_DIR/manifest.json failed validation. Expected version $VERSION and homePage $REPO_URL, got:"; jq -c '{version, homePage, js, css, display_name}' manifest.json; exit 1; }
+             '.version == $v and .homePage == $home and .js and .css and .display_name' \
+             manifest.json > /dev/null || {
+               echo "::error::manifest.json failed validation. Wanted version $VERSION and homePage $REPO_URL. Found:"
+               jq -c '{version, homePage, js, css, display_name}' manifest.json
+               echo "::error::On a hand-pushed tag, bump manifest.json and re-tag, or cut the release from the Actions tab so CI stamps it for you."
+               exit 1
+             }
           test -f "$(jq -r '.js' manifest.json)"  || { echo "::error::manifest js file missing"; exit 1; }
           test -f "$(jq -r '.css' manifest.json)" || { echo "::error::manifest css file missing"; exit 1; }
           node --check "$(jq -r '.js' manifest.json)"
           echo "manifests and scripts OK"
+
+      # Only now is it safe to write to the repo. Tags pushed with GITHUB_TOKEN
+      # do not start another workflow run, so this cannot loop back into the
+      # push-tags trigger above.
+      - name: Commit the bump and tag it
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json"
+          if git diff --staged --quiet; then
+            echo "Manifests already declare $VERSION; tagging the current commit."
+          else
+            git commit -m "release: $TAG"
+            git push origin HEAD:main
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
 
       - name: Build module.zip (module.json at zip root)
         working-directory: ${{ env.MODULE_DIR }}

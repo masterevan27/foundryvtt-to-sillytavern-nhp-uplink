@@ -1,15 +1,28 @@
 # Publishes a Foundry-installable release.
 #
+# Cut a release from the Actions tab: Release -> Run workflow -> enter the
+# version (e.g. 0.1.5). CI stamps that version into both manifests, commits it
+# to main, tags that commit, and publishes. The tag therefore always points at
+# a tree that declares its own version.
+#
+# Pushing a tag by hand still works, but CI can only VERIFY the versions in that
+# case -- a tag has already frozen the tree, so nothing can be bumped into it.
+# A mismatch fails the build instead of shipping a wrong version number.
+#
+# The two manifests are consumed differently, which is why they are handled
+# differently below:
+#   module.json   -- fetched as a RELEASE ASSET by Foundry, so stamping the
+#                    runner's copy is enough; the repo copy is cosmetic.
+#   manifest.json -- read straight from the REPO, because the SillyTavern
+#                    extension is copied in by hand. It has to be committed.
+#
 # Foundry's "Install Module" dialog fetches the manifest URL, reads `download`,
 # and unzips it into Data/modules/<id>/. So the zip must contain module.json at
 # its ROOT -- not nested inside a folder.
 #
-# Cut a release by pushing a tag:
-#     git tag v0.1.0 && git push origin v0.1.0
-#
 # Two asset URLs matter afterwards:
 #   .../releases/latest/download/module.json   <- stable, always newest (update checks)
-#   .../releases/download/v0.1.0/module.zip    <- version-pinned payload
+#   .../releases/download/v0.1.5/module.zip    <- version-pinned payload
 name: Release
 
 on:
@@ -19,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, without the leading v (e.g. 0.1.0)'
+        description: 'Version to publish, without the leading v (e.g. 0.1.5)'
         required: true
 
 permissions:
@@ -27,12 +40,18 @@ permissions:
 
 env:
   MODULE_DIR: foundry-module/foundryvtt-to-sillytavern-nhp-uplink
+  ST_EXT_DIR: st-ui-extension/SillyTavern-NHP-Uplink
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Full history, and main rather than the detached tag, so the dispatch
+      # path can commit the bump and push a tag from it.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
 
       - name: Resolve version
         id: v
@@ -50,6 +69,58 @@ jobs:
           echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
           echo "Publishing $VERSION"
 
+      # Dispatch path: bump -> commit -> tag. Tags pushed with GITHUB_TOKEN do
+      # not start another workflow run, so this cannot loop back into the
+      # `push: tags` trigger above.
+      - name: Bump manifests, commit and tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ steps.v.outputs.tag }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists. Pick a new version."
+            exit 1
+          fi
+
+          jq --arg v "$VERSION" --arg home "$REPO_URL" \
+             '.version = $v | .homePage = $home' \
+             "$ST_EXT_DIR/manifest.json" > st.tmp
+          mv st.tmp "$ST_EXT_DIR/manifest.json"
+
+          jq --arg v "$VERSION" '.version = $v' \
+             "$MODULE_DIR/module.json" > mod.tmp
+          mv mod.tmp "$MODULE_DIR/module.json"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json"
+          if git diff --staged --quiet; then
+            echo "Manifests already declare $VERSION; tagging the current commit."
+          else
+            git commit -m "release: $TAG"
+            git push origin HEAD:main
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "--- stamped extension manifest ---"
+          cat "$ST_EXT_DIR/manifest.json"
+
+      # Tag-push path: the tree is frozen, so all we can do is check it.
+      - name: Verify the extension manifest matches the tag
+        if: github.event_name == 'push'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          FOUND=$(jq -r '.version' "$ST_EXT_DIR/manifest.json")
+          if [ "$FOUND" != "$VERSION" ]; then
+            echo "::error::$ST_EXT_DIR/manifest.json declares '$FOUND' but the tag says '$VERSION'."
+            echo "::error::Bump it and re-tag, or cut releases from the Actions tab (Run workflow) and CI will do it for you."
+            exit 1
+          fi
+          echo "extension manifest declares $VERSION, matching the tag"
+
       - name: Stamp module.json
         working-directory: ${{ env.MODULE_DIR }}
         env:
@@ -66,15 +137,27 @@ jobs:
           echo "--- stamped manifest ---"
           cat module.json
 
-      - name: Sanity-check the manifest
-        working-directory: ${{ env.MODULE_DIR }}
+      - name: Sanity-check the manifests
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
+          cd "$GITHUB_WORKSPACE/$MODULE_DIR"
           jq -e '.id and .version and .manifest and .download and (.esmodules | length > 0)' module.json > /dev/null
           for f in $(jq -r '.esmodules[]' module.json); do
             test -f "$f" || { echo "::error::esmodule missing from package: $f"; exit 1; }
           done
           node --check scripts/uplink.js
-          echo "manifest and scripts OK"
+
+          cd "$GITHUB_WORKSPACE/$ST_EXT_DIR"
+          jq -e --arg v "$VERSION" \
+             '.version == $v
+              and (.homePage | test("^https://github\.com/[^/]+/[^/]+$"))
+              and .js and .css and .display_name' manifest.json > /dev/null \
+            || { echo "::error::$ST_EXT_DIR/manifest.json failed validation (version, homePage, js, css)"; exit 1; }
+          test -f "$(jq -r '.js' manifest.json)"  || { echo "::error::manifest js file missing"; exit 1; }
+          test -f "$(jq -r '.css' manifest.json)" || { echo "::error::manifest css file missing"; exit 1; }
+          node --check "$(jq -r '.js' manifest.json)"
+          echo "manifests and scripts OK"
 
       - name: Build module.zip (module.json at zip root)
         working-directory: ${{ env.MODULE_DIR }}

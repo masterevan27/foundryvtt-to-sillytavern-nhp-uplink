@@ -394,7 +394,11 @@ git ls-tree -r v0.1.0 --name-only | grep release.yml
 
 ## License
 
-GPL-3.0 — see [LICENSE](LICENSE).
+Copyright (C) 2026 masterevan27.
+
+GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all three components in this
+repository: the Foundry module, the SillyTavern server plugin, and the
+SillyTavern UI extension.
 
 LANCER is a trademark of Massif Press. This is an unofficial community tool with
 no affiliation to Massif Press, Foundry Gaming LLC, or the SillyTavern project.

@@ -55,6 +55,45 @@ function signed(n) {
     return n > 0 ? `+${n}` : `${n}`;
 }
 
+function damagePhrase(d) {
+    const parts = d.parts.map((p) => `${p.amount}${p.type ? ` ${p.type}` : ''}`);
+    const to = d.target ? ` to ${d.target}` : '';
+    const ap = d.ap ? ' AP' : '';
+    if (parts.length === 1) return `DAMAGE ${parts[0]}${ap}${to}`;
+    return `DAMAGE ${d.total}${ap}${to} (${parts.join(' + ')})`;
+}
+
+/**
+ * The numbers the GM must not get wrong, taken from the flow's own state rather
+ * than scraped out of the card text. These lines are never truncated: the card
+ * body below them is flavour and gets cut to maxCardLines, which is how a 13
+ * used to reach the model as a 1.
+ */
+function rollLines(event) {
+    const out = [];
+    const r = event.rolls ?? {};
+    const defense = r.defense ? String(r.defense).toUpperCase() : 'DEFENSE';
+
+    for (const t of r.targets ?? []) {
+        const outcome = t.crit ? 'CRIT' : t.hit ? 'HIT' : 'MISS';
+        const lock = t.usedLockOn ? ', spent LOCK ON' : '';
+        out.push(`ATTACK ROLL ${t.total ?? '?'} vs ${t.target ?? 'target'} ${defense} => ${outcome}${lock}`);
+    }
+    if (!out.length && r.attackTotals?.length) {
+        out.push(`ATTACK ROLL ${r.attackTotals.join(', ')} (no target selected)`);
+    }
+    if (!out.length && typeof r.total === 'number') {
+        out.push(`ROLL TOTAL ${r.total}`);
+    }
+    for (const d of r.damage ?? []) out.push(damagePhrase(d));
+
+    // Fall back to Foundry's own roll totals when the flow shape is unfamiliar.
+    if (!out.length && Array.isArray(event.rollTotals) && event.rollTotals.length) {
+        out.push(`ROLL TOTAL${event.rollTotals.length > 1 ? 'S' : ''} ${event.rollTotals.join(', ')}`);
+    }
+    return out.map((l) => `    ${l}`);
+}
+
 export function describeEvent(event, cfg = {}) {
     const lines = cfg.maxCardLines ?? 6;
     const who = event.actor ?? 'Someone';
@@ -78,12 +117,14 @@ export function describeEvent(event, cfg = {}) {
             const item = event.item ? ` - ${event.item}` : '';
             const head = `* ${who}: ${label}${item}${event.success === false ? ' (cancelled)' : ''}`;
             const body = indent(event.rendered, lines);
-            return body ? `${head}\n${body}` : head;
+            return [head, ...rollLines(event), body].filter(Boolean).join('\n');
         }
 
         case 'chat_card': {
+            const rolls = rollLines(event);
             const body = indent(event.text, lines);
-            return body ? `* ${who}:\n${body}` : null;
+            if (!rolls.length && !body) return null;
+            return [`* ${who}:`, ...rolls, body].filter(Boolean).join('\n');
         }
 
         case 'resource_change': {

@@ -33,19 +33,102 @@ const MOD = "foundryvtt-to-sillytavern-nhp-uplink";
 /* ------------------------------------------------------------------ */
 
 const SETTINGS = {
-  enabled: { type: Boolean, default: true, name: "Enable uplink", hint: "Master switch. Only the primary active GM's client transmits." },
-  endpoint: { type: String, default: "http://127.0.0.1:5088", name: "SillyTavern uplink URL", hint: "Base URL of the foundryvtt-to-sillytavern-nhp-uplink server plugin's standalone listener." },
-  secret: { type: String, default: "", name: "Shared secret", hint: "Must match the secret in the uplink plugin's config.json. Leave blank to disable auth." },
-  sendFlows: { type: Boolean, default: true, name: "Send Lancer flows", hint: "Attacks, tech attacks, damage, structure/stress, overcharge, activations, etc." },
-  sendChatCards: { type: Boolean, default: true, name: "Send chat cards", hint: "Rendered text of Lancer chat cards, which carry the actual roll numbers." },
-  sendResourceChanges: { type: Boolean, default: true, name: "Send HP/heat changes", hint: "Deltas to HP, heat, structure, stress, burn and overshield." },
-  sendStatuses: { type: Boolean, default: true, name: "Send status effects", hint: "Conditions gained or lost (IMPAIRED, JAMMED, EXPOSED, ...)." },
-  sendMovement: { type: Boolean, default: true, name: "Send token movement", hint: "Coalesced move events with distance in grid spaces." },
-  sendPlayerChat: { type: Boolean, default: true, name: "Send player chat", hint: "In-character and out-of-character messages typed by players." },
-  receiveNarration: { type: Boolean, default: true, name: "Receive AI-GM narration", hint: "Poll SillyTavern and post its replies into Foundry chat." },
-  narrationSpeaker: { type: String, default: "AI GM", name: "Narration speaker name", hint: "Alias shown on chat messages coming back from SillyTavern." },
-  pollSeconds: { type: Number, default: 2, name: "Poll interval (seconds)", hint: "How often to check SillyTavern for new narration." },
-  debug: { type: Boolean, default: false, name: "Debug logging", hint: "Verbose console output." }
+  enabled: {
+    type: Boolean,
+    default: true,
+    name: "Enable uplink",
+    hint: "Master switch. Only the primary active GM's client transmits.",
+  },
+  endpoint: {
+    type: String,
+    default: "http://127.0.0.1:5088",
+    name: "SillyTavern uplink URL",
+    hint: "Base URL of the foundryvtt-to-sillytavern-nhp-uplink server plugin's standalone listener.",
+  },
+  secret: {
+    type: String,
+    default: "",
+    name: "Shared secret",
+    hint: "Must match the secret in the uplink plugin's config.json. Leave blank to disable auth.",
+  },
+  sendFlows: {
+    type: Boolean,
+    default: true,
+    name: "Send Lancer flows",
+    hint: "Attacks, tech attacks, damage, structure/stress, overcharge, activations, etc.",
+  },
+  sendChatCards: {
+    type: Boolean,
+    default: true,
+    name: "Send chat cards",
+    hint: "Rendered text of Lancer chat cards, which carry the actual roll numbers.",
+  },
+  sendResourceChanges: {
+    type: Boolean,
+    default: true,
+    name: "Send HP/heat changes",
+    hint: "Deltas to HP, heat, structure, stress, burn and overshield.",
+  },
+  sendStatuses: {
+    type: Boolean,
+    default: true,
+    name: "Send status effects",
+    hint: "Conditions gained or lost (IMPAIRED, JAMMED, EXPOSED, ...).",
+  },
+  sendMovement: {
+    type: Boolean,
+    default: false,
+    name: "Send token movement",
+    hint: "Coalesced move events. Off by default: movement is the highest-volume, lowest-value event, and the live board state already carries every token's position.",
+  },
+  movementMinSpaces: {
+    type: Number,
+    default: 3,
+    name: "Minimum move to report",
+    hint: "Ignore repositioning shorter than this many grid spaces.",
+  },
+  sendBystanders: {
+    type: Boolean,
+    default: false,
+    name: "Include non-combatants in board state",
+    hint: "Report canvas tokens that are not in the combat tracker. Off by default: it inflates every board state with scenery.",
+  },
+  maxBystanders: {
+    type: Number,
+    default: 8,
+    name: "Maximum non-combatants",
+    hint: "Cap on how many non-tracker tokens appear in the board state.",
+  },
+  sendPlayerChat: {
+    type: Boolean,
+    default: true,
+    name: "Send player chat",
+    hint: "In-character and out-of-character messages typed by players.",
+  },
+  receiveNarration: {
+    type: Boolean,
+    default: true,
+    name: "Receive AI-GM narration",
+    hint: "Poll SillyTavern and post its replies into Foundry chat.",
+  },
+  narrationSpeaker: {
+    type: String,
+    default: "AI GM",
+    name: "Narration speaker name",
+    hint: "Alias shown on chat messages coming back from SillyTavern.",
+  },
+  pollSeconds: {
+    type: Number,
+    default: 2,
+    name: "Poll interval (seconds)",
+    hint: "How often to check SillyTavern for new narration.",
+  },
+  debug: {
+    type: Boolean,
+    default: false,
+    name: "Debug logging",
+    hint: "Verbose console output.",
+  },
 };
 
 function setting(key) {
@@ -57,7 +140,8 @@ function log(...args) {
 }
 
 function debug(...args) {
-  if (game.settings.settings.has(`${MOD}.debug`) && setting("debug")) console.debug(`${MOD} |`, ...args);
+  if (game.settings.settings.has(`${MOD}.debug`) && setting("debug"))
+    console.debug(`${MOD} |`, ...args);
 }
 
 /* ------------------------------------------------------------------ */
@@ -79,7 +163,8 @@ function bounded(field) {
 
 function scalar(field) {
   if (typeof field === "number") return field;
-  if (field && typeof field === "object" && typeof field.value === "number") return field.value;
+  if (field && typeof field === "object" && typeof field.value === "number")
+    return field.value;
   return null;
 }
 
@@ -107,14 +192,21 @@ function coalesceCardText(raw) {
     const line = piece.replace(/[\s\u00a0]+/g, " ").trim();
     if (!line) continue;
     const prev = out.length ? out[out.length - 1] : null;
-    if (prev !== null && line.length <= 4 && prev.length <= 72) out[out.length - 1] = `${prev} ${line}`;
+    if (prev !== null && line.length <= 4 && prev.length <= 72)
+      out[out.length - 1] = `${prev} ${line}`;
     else out.push(line);
   }
   return out.join("\n").trim();
 }
 
 function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return String(str).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
 }
 
 function dispositionLabel(token) {
@@ -133,7 +225,7 @@ function gridPosition(token) {
   if (!doc || doc.x == null || !canvas?.grid?.size) return null;
   return {
     x: Math.round(doc.x / canvas.grid.size),
-    y: Math.round(doc.y / canvas.grid.size)
+    y: Math.round(doc.y / canvas.grid.size),
   };
 }
 
@@ -156,19 +248,32 @@ function prune(value, depth = 0) {
   const t = typeof value;
 
   if (t === "number" || t === "boolean") return value;
-  if (t === "string") return value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}…` : value;
+  if (t === "string")
+    return value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}…` : value;
   if (t === "function" || t === "symbol") return undefined;
 
   if (depth > 3) return undefined;
 
   // Foundry documents collapse to an identity stub.
   if (value instanceof foundry.abstract.Document || value?.documentName) {
-    return { _doc: value.documentName ?? "Document", name: value.name ?? null, id: value.id ?? null, type: value.type ?? null };
+    return {
+      _doc: value.documentName ?? "Document",
+      name: value.name ?? null,
+      id: value.id ?? null,
+      type: value.type ?? null,
+    };
   }
 
   // Rolls collapse to their evaluated result.
-  if (value instanceof Roll || (value?.formula !== undefined && value?.total !== undefined)) {
-    return { formula: value.formula ?? null, total: value.total ?? null, result: typeof value.result === "string" ? value.result : null };
+  if (
+    value instanceof Roll ||
+    (value?.formula !== undefined && value?.total !== undefined)
+  ) {
+    return {
+      formula: value.formula ?? null,
+      total: value.total ?? null,
+      result: typeof value.result === "string" ? value.result : null,
+    };
   }
 
   if (Array.isArray(value)) {
@@ -191,7 +296,12 @@ function prune(value, depth = 0) {
       if (k.startsWith("_") || k === "parent" || k === "document") continue;
       if (n++ >= MAX_KEYS) break;
       const p = prune(v, depth + 1);
-      if (p !== undefined && p !== null && !(Array.isArray(p) && p.length === 0)) out[k] = p;
+      if (
+        p !== undefined &&
+        p !== null &&
+        !(Array.isArray(p) && p.length === 0)
+      )
+        out[k] = p;
     }
     return Object.keys(out).length ? out : undefined;
   }
@@ -235,7 +345,7 @@ function rollSummary(data) {
       total: Number.isFinite(total) ? total : null,
       hit: !!h?.hit,
       crit: !!h?.crit,
-      usedLockOn: !!h?.usedLockOn
+      usedLockOn: !!h?.usedLockOn,
     });
   }
   if (targets.length) out.targets = targets;
@@ -253,7 +363,7 @@ function rollSummary(data) {
       crit: !!t?.crit,
       ap: !!t?.ap,
       parts,
-      total: parts.reduce((sum, d) => sum + d.amount, 0)
+      total: parts.reduce((sum, d) => sum + d.amount, 0),
     });
   }
   if (!damage.length) {
@@ -263,14 +373,15 @@ function rollSummary(data) {
       damage.push({
         target: tokenName(d?.target),
         parts: [{ type: d?.d_type ?? null, amount: d.roll.total }],
-        total: d.roll.total
+        total: d.roll.total,
       });
     }
   }
   if (damage.length) out.damage = damage;
 
   // Stat checks, structure and stress rolls carry a single result instead.
-  const single = data.result?.total ?? data.result?.roll?.total ?? data.roll?.total;
+  const single =
+    data.result?.total ?? data.result?.roll?.total ?? data.roll?.total;
   if (typeof single === "number") out.total = single;
 
   return Object.keys(out).length ? out : undefined;
@@ -301,7 +412,7 @@ function snapshotActor(actor, token) {
     size: scalar(s.size),
     tier: scalar(s.tier),
     statuses: [...(actor.statuses ?? [])],
-    position: gridPosition(token)
+    position: gridPosition(token),
   };
   if (s.destroyed) out.destroyed = true;
   if (s.activations != null) out.activations = scalar(s.activations);
@@ -320,7 +431,7 @@ function snapshotState() {
     round: combat?.round ?? null,
     activeCombatant: combat?.combatant?.name ?? null,
     combatants: [],
-    bystanders: []
+    bystanders: [],
   };
 
   const seen = new Set();
@@ -338,14 +449,19 @@ function snapshotState() {
   }
 
   // Anything else on the canvas that has Lancer stats but is not in the tracker.
-  for (const token of canvas?.tokens?.placeables ?? []) {
-    const actor = token.actor;
-    if (!actor || seen.has(actor.id)) continue;
-    if (!actor.system?.hp) continue;
-    if (token.document.hidden) continue;
-    const snap = snapshotActor(actor, token);
-    if (snap) state.bystanders.push(snap);
-    seen.add(actor.id);
+  // Every one of these costs tokens in every board state, so it is opt-in and capped.
+  if (setting("sendBystanders")) {
+    const cap = Math.max(0, Number(setting("maxBystanders")) || 0);
+    for (const token of canvas?.tokens?.placeables ?? []) {
+      if (state.bystanders.length >= cap) break;
+      const actor = token.actor;
+      if (!actor || seen.has(actor.id)) continue;
+      if (!actor.system?.hp) continue;
+      if (token.document.hidden) continue;
+      const snap = snapshotActor(actor, token);
+      if (snap) state.bystanders.push(snap);
+      seen.add(actor.id);
+    }
   }
 
   return state;
@@ -396,19 +512,22 @@ async function flush() {
     world: game.world?.title ?? game.world?.id ?? null,
     sentAt: Date.now(),
     events: batch,
-    state: snapshotState()
+    state: snapshotState(),
   });
 
   try {
-    const res = await fetch(`${setting("endpoint").replace(/\/+$/, "")}/event`, {
-      method: "POST",
-      mode: "cors",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Uplink-Key": setting("secret") ?? ""
+    const res = await fetch(
+      `${setting("endpoint").replace(/\/+$/, "")}/event`,
+      {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Uplink-Key": setting("secret") ?? "",
+        },
+        body,
       },
-      body
-    });
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     if (!transportHealthy) {
       transportHealthy = true;
@@ -432,12 +551,28 @@ async function flush() {
 /* ------------------------------------------------------------------ */
 
 const FLOW_NAMES = [
-  "ActivationFlow", "BasicAttackFlow", "WeaponAttackFlow", "TechAttackFlow",
-  "DamageRollFlow", "StatRollFlow", "StructureFlow", "SecondaryStructureFlow",
-  "OverchargeFlow", "OverheatFlow", "StabilizeFlow", "FullRepairFlow",
-  "BurnFlow", "CascadeFlow", "CoreActiveFlow", "NPCRechargeFlow",
-  "SystemFlow", "TalentFlow", "BondPowerFlow", "ActionTrackFlow",
-  "SimpleTextFlow", "SimpleHTMLFlow"
+  "ActivationFlow",
+  "BasicAttackFlow",
+  "WeaponAttackFlow",
+  "TechAttackFlow",
+  "DamageRollFlow",
+  "StatRollFlow",
+  "StructureFlow",
+  "SecondaryStructureFlow",
+  "OverchargeFlow",
+  "OverheatFlow",
+  "StabilizeFlow",
+  "FullRepairFlow",
+  "BurnFlow",
+  "CascadeFlow",
+  "CoreActiveFlow",
+  "NPCRechargeFlow",
+  "SystemFlow",
+  "TalentFlow",
+  "BondPowerFlow",
+  "ActionTrackFlow",
+  "SimpleTextFlow",
+  "SimpleHTMLFlow",
 ];
 
 /**
@@ -451,7 +586,13 @@ const FLOW_NAMES = [
 const recentCards = [];
 
 function rememberCard(event, actorId, speakerName) {
-  recentCards.push({ event, actorId, speakerName, ts: Date.now(), claimed: false });
+  recentCards.push({
+    event,
+    actorId,
+    speakerName,
+    ts: Date.now(),
+    claimed: false,
+  });
   while (recentCards.length > 12) recentCards.shift();
 }
 
@@ -460,9 +601,10 @@ function absorbCardIntoFlow(flowEvent, actorId) {
   for (let i = recentCards.length - 1; i >= 0; i--) {
     const entry = recentCards[i];
     if (entry.claimed || now - entry.ts > 2500) continue;
-    const sameActor = actorId && entry.actorId
-      ? actorId === entry.actorId
-      : !!flowEvent.actor && entry.speakerName === flowEvent.actor;
+    const sameActor =
+      actorId && entry.actorId
+        ? actorId === entry.actorId
+        : !!flowEvent.actor && entry.speakerName === flowEvent.actor;
     if (!sameActor) continue;
     entry.claimed = true;
     flowEvent.rendered = entry.event.text;
@@ -492,7 +634,7 @@ function onFlow(flowName, flow, success) {
     item: item?.name ?? null,
     itemType: item?.type ?? null,
     rolls: rollSummary(state.data),
-    data: prune(state.data) ?? undefined
+    data: prune(state.data) ?? undefined,
   };
 
   const emitted = enqueue(event);
@@ -514,30 +656,38 @@ function onChatMessage(msg) {
   // Belt and braces: if the flag is ever lost (another module rewriting the
   // message, a relayed copy), fall back to matching the narration speaker alias.
   const narrationAlias = (setting("narrationSpeaker") ?? "").trim();
-  if (narrationAlias && (msg.speaker?.alias ?? "").trim() === narrationAlias) return;
+  if (narrationAlias && (msg.speaker?.alias ?? "").trim() === narrationAlias)
+    return;
 
   // A directive typed by anyone via /aigm.
   const directive = msg.getFlag?.(MOD, "directive");
   if (directive) {
-    enqueue({ type: "gm_directive", user: msg.author?.name ?? msg.user?.name ?? "unknown", text: directive });
+    enqueue({
+      type: "gm_directive",
+      user: msg.author?.name ?? msg.user?.name ?? "unknown",
+      text: directive,
+    });
     return;
   }
 
   const speaker = msg.speaker ?? {};
   const actor = speaker.actor ? game.actors.get(speaker.actor) : null;
-  const speakerName = speaker.alias ?? actor?.name ?? msg.author?.name ?? "unknown";
+  const speakerName =
+    speaker.alias ?? actor?.name ?? msg.author?.name ?? "unknown";
   const text = htmlToText(msg.content);
 
   const isLancerCard = !!msg.flags?.lancer || !!msg.rolls?.length;
 
   if (isLancerCard) {
     if (!setting("sendChatCards")) return;
-    const rollTotals = (msg.rolls ?? []).map((r) => r.total).filter((n) => typeof n === "number");
+    const rollTotals = (msg.rolls ?? [])
+      .map((r) => r.total)
+      .filter((n) => typeof n === "number");
     const emitted = enqueue({
       type: "chat_card",
       actor: speakerName,
       text,
-      rollTotals: rollTotals.length ? rollTotals : undefined
+      rollTotals: rollTotals.length ? rollTotals : undefined,
     });
     // The flow that printed this card has not fired postFlow yet; when it does,
     // absorbCardIntoFlow folds this event into it.
@@ -554,7 +704,7 @@ function onChatMessage(msg) {
     actor: speaker.alias ?? actor?.name ?? null,
     inCharacter: !!(speaker.alias || actor),
     whisper: !!msg.whisper?.length,
-    text
+    text,
   });
 }
 
@@ -562,7 +712,14 @@ function onChatMessage(msg) {
 /* Resource + status capture                                           */
 /* ------------------------------------------------------------------ */
 
-const TRACKED_RESOURCES = ["hp", "heat", "structure", "stress", "overshield", "burn"];
+const TRACKED_RESOURCES = [
+  "hp",
+  "heat",
+  "structure",
+  "stress",
+  "overshield",
+  "burn",
+];
 
 /** Values captured before an update lands, keyed by actor id. */
 const preUpdateValues = new Map();
@@ -598,7 +755,7 @@ function onUpdateActor(actor, changes) {
       from: prior ?? null,
       to: after,
       delta: typeof prior === "number" ? after - prior : null,
-      max: bounded(actor.system?.[key])?.max ?? null
+      max: bounded(actor.system?.[key])?.max ?? null,
     });
   }
 
@@ -610,7 +767,7 @@ function onUpdateActor(actor, changes) {
     actor: token?.name ?? actor.name,
     actorType: actor.type,
     disposition: token ? dispositionLabel(token) : "unknown",
-    changes: deltas
+    changes: deltas,
   });
 }
 
@@ -625,7 +782,7 @@ function onActiveEffect(effect, added) {
     actor: token?.name ?? actor.name,
     disposition: token ? dispositionLabel(token) : "unknown",
     status: label,
-    gained: added
+    gained: added,
   });
 }
 
@@ -634,6 +791,9 @@ function onActiveEffect(effect, added) {
 /* ------------------------------------------------------------------ */
 
 const pendingMoves = new Map(); // tokenId -> {from, timer}
+
+/** How long a token must sit still before its move is considered finished. */
+const MOVE_COALESCE_MS = 2500;
 
 /** The updateToken hook sees the new position, so record the origin beforehand. */
 function onPreUpdateToken(tokenDoc, changes) {
@@ -661,15 +821,18 @@ function onUpdateToken(tokenDoc, changes) {
     const to = gridPosition(tokenDoc);
     const distance = gridDistance(entry.from, to);
     if (!distance) return;
+    // Shuffling a token a space or two is not a narrative beat, and the live
+    // board state already reports where everything ended up.
+    if (distance < (Number(setting("movementMinSpaces")) || 0)) return;
     enqueue({
       type: "movement",
       actor: tokenDoc.name,
       disposition: dispositionLabel(tokenDoc),
       from: entry.from,
       to,
-      spaces: distance
+      spaces: distance,
     });
-  }, 1200);
+  }, MOVE_COALESCE_MS);
 
   pendingMoves.set(id, { from, timer });
 }
@@ -685,8 +848,8 @@ function registerCombatHooks() {
       scene: canvas?.scene?.name ?? null,
       combatants: combat.combatants.map((c) => ({
         name: c.name,
-        disposition: c.token ? dispositionLabel(c.token) : "unknown"
-      }))
+        disposition: c.token ? dispositionLabel(c.token) : "unknown",
+      })),
     });
   });
 
@@ -699,7 +862,9 @@ function registerCombatHooks() {
       type: "turn_change",
       round: combat.round,
       activeCombatant: combat.combatant?.name ?? null,
-      disposition: combat.combatant?.token ? dispositionLabel(combat.combatant.token) : "unknown"
+      disposition: combat.combatant?.token
+        ? dispositionLabel(combat.combatant.token)
+        : "unknown",
     });
   });
 
@@ -710,7 +875,9 @@ function registerCombatHooks() {
       type: "activation",
       actor: combatant.name,
       round: combatant.combat?.round ?? null,
-      disposition: combatant.token ? dispositionLabel(combatant.token) : "unknown"
+      disposition: combatant.token
+        ? dispositionLabel(combatant.token)
+        : "unknown",
     });
   });
 
@@ -727,10 +894,14 @@ let inboundCursor = 0;
 let pollTimer = null;
 
 async function pollInbound() {
-  if (!setting("enabled") || !setting("receiveNarration") || !isUplinkClient()) return;
+  if (!setting("enabled") || !setting("receiveNarration") || !isUplinkClient())
+    return;
   try {
     const url = `${setting("endpoint").replace(/\/+$/, "")}/outbound?since=${inboundCursor}`;
-    const res = await fetch(url, { mode: "cors", headers: { "X-Uplink-Key": setting("secret") ?? "" } });
+    const res = await fetch(url, {
+      mode: "cors",
+      headers: { "X-Uplink-Key": setting("secret") ?? "" },
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
     inboundCursor = payload.cursor ?? inboundCursor;
@@ -752,7 +923,7 @@ async function postNarration(item) {
   await ChatMessage.create({
     content: `<div class="lancer-tavern-narration">${html}</div>`,
     speaker: { alias },
-    flags: { [MOD]: { fromSillyTavern: true } }
+    flags: { [MOD]: { fromSillyTavern: true } },
   });
 }
 
@@ -774,7 +945,7 @@ function registerChatCommand() {
     ChatMessage.create({
       content: `<em>→ AI GM:</em> ${escapeHtml(text)}`,
       whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
-      flags: { [MOD]: { directive: text } }
+      flags: { [MOD]: { directive: text } },
     });
     return false;
   });
@@ -795,7 +966,7 @@ Hooks.once("init", () => {
       default: cfg.default,
       onChange: () => {
         if (key === "pollSeconds") startPolling();
-      }
+      },
     });
   }
   log("settings registered");
@@ -808,7 +979,9 @@ Hooks.once("ready", () => {
   }
 
   for (const name of FLOW_NAMES) {
-    Hooks.on(`lancer.postFlow.${name}`, (flow, success) => onFlow(name, flow, success));
+    Hooks.on(`lancer.postFlow.${name}`, (flow, success) =>
+      onFlow(name, flow, success),
+    );
   }
 
   Hooks.on("createChatMessage", onChatMessage);
@@ -825,14 +998,20 @@ Hooks.once("ready", () => {
   // Expose a small API for macros and debugging.
   game.modules.get(MOD).api = {
     snapshotState,
-    sendDirective: (text) => enqueue({ type: "gm_directive", user: game.user.name, text }),
-    sendSceneBrief: () => enqueue({ type: "scene_brief", scene: canvas?.scene?.name ?? null }),
-    flush
+    sendDirective: (text) =>
+      enqueue({ type: "gm_directive", user: game.user.name, text }),
+    sendSceneBrief: () =>
+      enqueue({ type: "scene_brief", scene: canvas?.scene?.name ?? null }),
+    flush,
   };
 
   if (isUplinkClient()) {
     log(`active as uplink client → ${setting("endpoint")}`);
-    enqueue({ type: "uplink_connected", world: game.world?.title ?? null, scene: canvas?.scene?.name ?? null });
+    enqueue({
+      type: "uplink_connected",
+      world: game.world?.title ?? null,
+      scene: canvas?.scene?.name ?? null,
+    });
   } else {
     log("standing by (another GM client owns the uplink)");
   }

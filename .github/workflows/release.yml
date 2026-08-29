@@ -9,12 +9,18 @@
 # case -- a tag has already frozen the tree, so nothing can be bumped into it.
 # A mismatch fails the build instead of shipping a wrong version number.
 #
-# The two manifests are consumed differently, which is why they are handled
-# differently below:
-#   module.json   -- fetched as a RELEASE ASSET by Foundry, so stamping the
-#                    runner's copy is enough; the repo copy is cosmetic.
+# The two manifests are consumed differently, which is why they are stamped at
+# different points below:
+#   module.json   -- fetched as a RELEASE ASSET by Foundry. What ships is the
+#                    runner's copy, attached to the release.
 #   manifest.json -- read straight from the REPO, because the SillyTavern
 #                    extension is copied in by hand. It has to be committed.
+#
+# Both are committed to main in the same "release: vX.Y.Z" commit, and stamping
+# runs BEFORE that commit -- so the repo's module.json carries a `download` URL
+# pinned to this tag. That keeps the repo honest about the release it just cut;
+# it is not a latest-tracking manifest, and nobody should paste a raw repo link
+# into Foundry.
 #
 # Foundry's "Install Module" dialog fetches the manifest URL, reads `download`,
 # and unzips it into Data/modules/<id>/. So the zip must contain module.json at

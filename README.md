@@ -661,7 +661,7 @@ git ls-tree -r v0.1.5 --name-only | grep release.yml
 
 ## License
 
-Copyright (C) 2026 Evan Dekalb.
+Copyright (C) 2026 masterevan27.
 
 GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all three components in this
 repository: the Foundry module, the SillyTavern server plugin, and the

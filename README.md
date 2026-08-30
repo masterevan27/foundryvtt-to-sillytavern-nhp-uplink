@@ -1,6 +1,6 @@
 # FoundryVTT → SillyTavern NHP Uplink
 
-Streams live [LANCER](https://massifpress.com/lancer) combat out of Foundry VTT
+Streams live [LANCER](https://massifpress.com/lancer) combat out of [Foundry VTT](https://foundryvtt.com/)
 into [SillyTavern](https://github.com/SillyTavern/SillyTavern), so a character
 card can act as an AI GM that narrates the fight, voices NPCs, and reacts to
 what actually happened at the table. Its replies come back into Foundry chat.
@@ -9,10 +9,10 @@ The AI never rolls dice or decides outcomes. Foundry stays the authority on
 mechanics; the uplink hands the model a faithful, structured account of what
 occurred and asks it for fiction.
 
-**Why "NHP Uplink"?** In LANCER, an *NHP* — Non-Human Person — is the setting's
+**Why "NHP Uplink"?** In LANCER, an _NHP_ — Non-Human Person — is the setting's
 term for a machine intelligence: a paracausal mind run inside a shackled cage,
 riding along with a pilot and talking back. That is exactly the role the AI plays
-here, so the module is the *uplink* that carries the table's combat down the wire
+here, so the module is the _uplink_ that carries the table's combat down the wire
 to it and its narration back up.
 
 ```
@@ -48,17 +48,23 @@ https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/la
 ```
 
 That covers the Foundry half and enables update checks. The SillyTavern plugin
-and extension are copied in by hand — see [Install](#install) for all six steps.
+and extension are copied in by hand — see [Install](#install) for all six steps,
+plus an optional seventh for the [Lancer UI theme](#7-lancer-ui-theme-optional).
 
 ---
 
 ## Requirements
 
-| | |
-|---|---|
-| [Foundry VTT](https://foundryvtt.com/) | v12 or v13 |
-| [Lancer system](https://foundryvtt.com/packages/lancer) | 2.0+ (developed against 3.1.3) |
+|                                                           |                                        |
+| --------------------------------------------------------- | -------------------------------------- |
+| [Foundry VTT](https://foundryvtt.com/)                    | v12 or v13                             |
+| [Lancer system](https://foundryvtt.com/packages/lancer)   | 2.0+ (developed against 3.1.3)         |
 | [SillyTavern](https://github.com/SillyTavern/SillyTavern) | any version with server plugin support |
+
+Optional, but recommended: the
+[Lancer // CompCon theme](https://github.com/masterevan27/sillytavern-lancer-ui-theme)
+— a SillyTavern UI theme in COMP/CON's palette that colour-codes who is speaking.
+It is a separate project; see [install step 7](#7-lancer-ui-theme-optional).
 
 The Lancer system only supports Foundry VTT up to **v13** at the moment, so v13
 is the practical ceiling for this module even if a newer Foundry is available.
@@ -124,7 +130,7 @@ Copy `foundry-module/foundryvtt-to-sillytavern-nhp-uplink/` into your Foundry
 
 Foundry shows its data path under **Configuration** on the setup screen. Note
 that if you launch with `--dataPath=<dir>`, Foundry creates a `Data` subfolder
-*inside* it, so modules live at `<dir>/Data/modules/`. Easy to get wrong when
+_inside_ it, so modules live at `<dir>/Data/modules/`. Easy to get wrong when
 you have more than one install.
 
 Installing this way means no automatic update checks.
@@ -208,14 +214,40 @@ Everything else has a working default.
 
 Extensions panel → **FoundryVTT to SillyTavern NHP Uplink**:
 
-| Mode | Behaviour |
-|---|---|
-| `auto` | Injects the feed and immediately generates a reply. Hands-off. |
-| `manual` | Injects the feed; you press send when you want narration. |
-| `observe` | Logs digests to the browser console only. Good for tuning. |
+| Mode      | Behaviour                                                      |
+| --------- | -------------------------------------------------------------- |
+| `auto`    | Injects the feed and immediately generates a reply. Hands-off. |
+| `manual`  | Injects the feed; you press send when you want narration.      |
+| `observe` | Logs digests to the browser console only. Good for tuning.     |
 
 Start in `manual` for your first session so you can see what the AI receives
 before it starts talking.
+
+### 7. Lancer UI theme (optional)
+
+Purely cosmetic, and entirely optional — the uplink works exactly the same
+without it. It is recommended anyway: it makes the SillyTavern window look like
+it belongs next to a Lancer table, and colour-codes speakers so the AI GM, your
+pilots and hostiles are distinguishable at a glance during a fight.
+
+The theme lives in its own repository,
+[**sillytavern-lancer-ui-theme**](https://github.com/masterevan27/sillytavern-lancer-ui-theme),
+and is installed independently of everything above. Two halves:
+
+**The extension** (_Lancer Theme Controls_ — separate from the uplink extension
+in step 3) — SillyTavern's **Extensions → Install extension**, paste:
+
+```
+https://github.com/masterevan27/sillytavern-lancer-ui-theme
+```
+
+**The theme itself** — **User Settings → Themes → Import**, pick
+`Lancer CompCon.json` from a clone of that repo, then select **Lancer CompCon**
+in the theme dropdown. Reload the browser afterwards.
+
+The theme works on its own; the extension only adds the toggles and sliders that
+drive it, so install both if you want to tune it. Full details, palette notes and
+screenshots are in that repository's README.
 
 ---
 
@@ -279,8 +311,8 @@ A macro API is also available:
 const api = game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api;
 api.sendSceneBrief();
 api.sendDirective("Describe the dropship arriving.");
-api.snapshotState();   // returns the current board state object
-api.flush();           // force-send whatever is queued, without waiting
+api.snapshotState(); // returns the current board state object
+api.flush(); // force-send whatever is queued, without waiting
 ```
 
 ---
@@ -310,7 +342,7 @@ drops the full roster into chat on demand.
 ### Cost
 
 Every generation re-sends the whole chat history, so what a session costs is
-driven by how *often* the AI speaks, not by how much Foundry sends. Three things
+driven by how _often_ the AI speaks, not by how much Foundry sends. Three things
 keep that in check:
 
 **Only generate on narrative beats** (on by default) injects every digest but
@@ -433,13 +465,13 @@ therefore always points at a tree that declares its own version.
 The two manifests are consumed differently, which is why the workflow stamps
 them at different points:
 
-| File | How users get it | Stamped with |
-|---|---|---|
-| `foundry-module/…/module.json` | Fetched as a **release asset** by Foundry | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
-| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | `version` and `homePage` |
+| File                                                   | How users get it                                   | Stamped with                                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `foundry-module/…/module.json`                         | Fetched as a **release asset** by Foundry          | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
+| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | `version` and `homePage`                                                                     |
 
 Both stamped files are then committed to `main` in the same `release: vX.Y.Z`
-commit, and that commit is what gets tagged. The extension manifest *has* to be
+commit, and that commit is what gets tagged. The extension manifest _has_ to be
 committed — it is copied out of a clone rather than downloaded from a release,
 so stamping it only inside a build artifact would reach nobody.
 
@@ -457,10 +489,10 @@ module with `module.json` at the **zip root** (Foundry rejects a nested folder).
 
 That produces the two URLs that matter:
 
-| URL | Purpose |
-|---|---|
+| URL                                    | Purpose                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------- |
 | `releases/latest/download/module.json` | Stable manifest — what users paste, and what Foundry polls for updates |
-| `releases/download/vX.Y.Z/module.zip` | The version-pinned payload |
+| `releases/download/vX.Y.Z/module.zip`  | The version-pinned payload                                             |
 
 `manifest` always points at `latest` so update checks resolve to the newest
 release, while `download` is pinned to the tag so Foundry fetches the exact
@@ -468,7 +500,7 @@ version that manifest describes.
 
 ### Tagging by hand
 
-Pushing a tag still triggers a release, but CI can then only *verify* the
+Pushing a tag still triggers a release, but CI can then only _verify_ the
 version — a tag has already frozen the tree, so nothing can be bumped into it.
 Bump `manifest.json` yourself first, in the commit you intend to tag:
 
@@ -480,7 +512,7 @@ git push origin v0.1.5
 If the manifest does not already declare the tag's version, the build fails
 rather than shipping a wrong number.
 
-The tag must also point at a commit that *contains*
+The tag must also point at a commit that _contains_
 `.github/workflows/release.yml`. Tagging an earlier commit produces no release
 at all and no error — GitHub simply has no workflow to run at that ref, and the
 manifest URL keeps returning 404. Check before pushing:
@@ -498,6 +530,10 @@ Copyright (C) 2026 Evan Dekalb.
 GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all three components in this
 repository: the Foundry module, the SillyTavern server plugin, and the
 SillyTavern UI extension.
+
+The [Lancer // CompCon theme](https://github.com/masterevan27/sillytavern-lancer-ui-theme)
+is a separate project in its own repository, under its own copy of the same
+licence.
 
 LANCER is a trademark of Massif Press. This is an unofficial community tool with
 no affiliation to Massif Press, Foundry Gaming LLC, or the SillyTavern project.

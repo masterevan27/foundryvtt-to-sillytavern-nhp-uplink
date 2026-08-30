@@ -46,11 +46,16 @@ permissions:
 
 env:
   MODULE_DIR: foundry-module/foundryvtt-to-sillytavern-nhp-uplink
-  ST_EXT_DIR: st-ui-extension/SillyTavern-NHP-Uplink
+  ST_EXT_DIR: st-ui-extension/sillytavern-foundryvtt-input
+  ST_PLUGIN_DIR: st-server-plugin/sillytavern-foundryvtt-input-server-plugin
+  ST_MIRROR_REPO: masterevan27/sillytavern-foundryvtt-input
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       # Full history, and main rather than the detached tag, so the dispatch
       # path can commit the bump and push a tag from it.
@@ -101,6 +106,11 @@ jobs:
              "$MODULE_DIR/module.json" > mod.tmp
           mv mod.tmp "$MODULE_DIR/module.json"
 
+          # The server plugin has no manifest to stamp -- it reports its version
+          # from a constant, so the constant is what gets rewritten.
+          sed -i -E "s/^const PLUGIN_VERSION = '[^']*';/const PLUGIN_VERSION = '$VERSION';/" "$ST_PLUGIN_DIR/index.js"
+          grep -n "^const PLUGIN_VERSION" "$ST_PLUGIN_DIR/index.js"
+
           echo "--- stamped extension manifest ---"
           cat "$ST_EXT_DIR/manifest.json"
 
@@ -146,7 +156,29 @@ jobs:
           test -f "$(jq -r '.js' manifest.json)"  || { echo "::error::manifest js file missing"; exit 1; }
           test -f "$(jq -r '.css' manifest.json)" || { echo "::error::manifest css file missing"; exit 1; }
           node --check "$(jq -r '.js' manifest.json)"
-          echo "manifests and scripts OK"
+          cd "$GITHUB_WORKSPACE"
+          node --check "$ST_PLUGIN_DIR/index.js"
+          grep -qF "const PLUGIN_VERSION = '$VERSION';" "$ST_PLUGIN_DIR/index.js" || {
+            echo "::error::PLUGIN_VERSION in $ST_PLUGIN_DIR/index.js does not declare $VERSION."
+            echo "::error::On a hand-pushed tag, bump it yourself and re-tag, or cut the release from the Actions tab."
+            exit 1
+          }
+
+          # The UI extension auto-updates and the server plugin does not, so the
+          # two halves drift by design. PROTOCOL is what makes that drift
+          # diagnosable -- if they disagree at BUILD time the check itself is
+          # broken, and every user would get a bogus mismatch warning.
+          P_SRV=$(grep -E "^const PROTOCOL = [0-9]+;" "$ST_PLUGIN_DIR/index.js" | tr -dc '0-9')
+          P_EXT=$(grep -E "^const PROTOCOL = [0-9]+;" "$ST_EXT_DIR/index.js" | tr -dc '0-9')
+          if [ -z "$P_SRV" ] || [ -z "$P_EXT" ]; then
+            echo "::error::Could not read PROTOCOL from both halves (plugin='$P_SRV' extension='$P_EXT')."
+            exit 1
+          fi
+          if [ "$P_SRV" != "$P_EXT" ]; then
+            echo "::error::PROTOCOL disagrees at build time: plugin=$P_SRV extension=$P_EXT. Bump both together."
+            exit 1
+          fi
+          echo "manifests and scripts OK (protocol $P_SRV)"
 
       # Only now is it safe to write to the repo. Tags pushed with GITHUB_TOKEN
       # do not start another workflow run, so this cannot loop back into the
@@ -159,7 +191,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json"
+          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json" "$ST_PLUGIN_DIR/index.js"
           if git diff --staged --quiet; then
             echo "Manifests already declare $VERSION; tagging the current commit."
           else
@@ -185,3 +217,129 @@ jobs:
           files: |
             module.zip
             ${{ env.MODULE_DIR }}/module.json
+
+  # Mirrors the SillyTavern UI extension into its own repo, with manifest.json
+  # at the ROOT -- the only layout SillyTavern's "Install extension" dialog
+  # understands. The mirror is a DISTRIBUTION ARTIFACT, not a fork: nothing is
+  # developed there, every sync overwrites it wholesale, and this repo stays the
+  # single source of truth.
+  #
+  # It is a separate job so a mirror failure goes red WITHOUT marking the release
+  # itself failed. By this point the Foundry release has already published, and
+  # that stays true whatever happens here.
+  #
+  # Needs a fine-grained PAT in the ST_MIRROR_TOKEN secret, scoped to the mirror
+  # repo alone, with Contents: read and write -- GITHUB_TOKEN cannot push across
+  # repositories. Because it is a PAT and not GITHUB_TOKEN, these pushes DO
+  # trigger workflows in the mirror, so keep that repo workflow-free.
+  mirror:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      # The tag exists by now and is the tree carrying the stamped manifest, so
+      # mirror from the tag -- never from whatever main may have drifted to.
+      - name: Check out the tagged source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+          path: src
+
+      - name: Check out the mirror
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.ST_MIRROR_REPO }}
+          token: ${{ secrets.ST_MIRROR_TOKEN }}
+          path: mirror
+          fetch-depth: 0
+
+      - name: Sync the extension to the mirror root
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          MIRROR_URL: ${{ github.server_url }}/${{ env.ST_MIRROR_REPO }}
+        run: |
+          # --delete so a file dropped upstream disappears here too; this is a
+          # mirror, not an accumulator. It wipes LICENSE and README.md as well,
+          # which is fine -- both are regenerated immediately below.
+          rsync -a --delete --exclude '.git/' "src/$ST_EXT_DIR/" mirror/
+
+          # GPL-3.0-or-later: the mirror distributes the code, so it has to
+          # carry the licence with it.
+          cp src/LICENSE mirror/LICENSE
+
+          # auto_update is false upstream because that copy is hand-installed
+          # into a plain folder, where SillyTavern's git pull has nothing to
+          # pull. The mirror IS a clone, so here it can be true.
+          jq '.auto_update = true' mirror/manifest.json > au.tmp
+          mv au.tmp mirror/manifest.json
+
+          # Written with echo rather than a heredoc: a heredoc terminator cannot
+          # be indented, and un-indenting it here would end this YAML block.
+          {
+            echo '# FoundryVTT to SillyTavern NHP Uplink -- SillyTavern extension'
+            echo
+            echo '> **Generated repository -- do not edit by hand.** Every file here is'
+            echo "> overwritten on each release by the \`mirror\` job in"
+            echo "> <$REPO_URL/blob/main/.github/workflows/release.yml>."
+            echo "> Please open issues and pull requests against <$REPO_URL> instead."
+            echo
+            echo 'This is the SillyTavern UI half of the NHP Uplink, published on its own'
+            echo "so SillyTavern's extension installer can reach it. On its own it does"
+            echo 'nothing.'
+            echo
+            echo '## Install'
+            echo
+            echo 'In SillyTavern, go to **Extensions -> Install extension** and paste:'
+            echo
+            echo '```'
+            echo "$MIRROR_URL"
+            echo '```'
+            echo
+            echo "Then follow the full setup at <$REPO_URL#install>. You also need the"
+            echo 'Foundry module and the SillyTavern **server plugin** -- the server plugin'
+            echo 'is what this extension actually talks to.'
+            echo
+            echo '## License'
+            echo
+            echo 'GPL-3.0-or-later -- see [LICENSE](LICENSE).'
+            echo
+            echo 'LANCER is a trademark of Massif Press. This is an unofficial community'
+            echo 'tool with no affiliation to Massif Press, Foundry Gaming LLC, or the'
+            echo 'SillyTavern project.'
+          } > mirror/README.md
+
+      # Cheap insurance: a mirror that fails to parse is worse than no mirror,
+      # because SillyTavern will clone it happily and then break at load.
+      - name: Sanity-check the mirror
+        working-directory: mirror
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          jq -e --arg v "$VERSION" \
+             '.version == $v and .auto_update == true and .js and .css and .display_name' \
+             manifest.json > /dev/null
+          test -f "$(jq -r '.js' manifest.json)"
+          test -f "$(jq -r '.css' manifest.json)"
+          test -f LICENSE
+          node --check "$(jq -r '.js' manifest.json)"
+          echo "mirror OK"
+
+      - name: Commit and tag the mirror
+        working-directory: mirror
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Mirror already matches $TAG."
+          else
+            git commit -m "sync: $TAG (from $GITHUB_REPOSITORY@$TAG)"
+            git push
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::warning::Mirror already carries tag $TAG; leaving it as it is."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi

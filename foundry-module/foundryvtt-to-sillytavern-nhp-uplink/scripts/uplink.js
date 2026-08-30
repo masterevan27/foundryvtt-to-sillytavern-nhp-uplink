@@ -43,7 +43,7 @@ const SETTINGS = {
     type: String,
     default: "http://127.0.0.1:5088",
     name: "SillyTavern uplink URL",
-    hint: "Base URL of the foundryvtt-to-sillytavern-nhp-uplink server plugin's standalone listener.",
+    hint: "Base URL of the sillytavern-foundryvtt-input server plugin's standalone listener.",
   },
   secret: {
     type: String,

@@ -18,7 +18,7 @@
  */
 
 /**
- * SillyTavern server plugin: foundryvtt-to-sillytavern-nhp-uplink
+ * SillyTavern server plugin: sillytavern-foundryvtt-input
  *
  * Two faces on one shared queue pair:
  *
@@ -26,7 +26,7 @@
  *      It lives outside SillyTavern's Express app deliberately, so Foundry's
  *      cross-origin POSTs never meet SillyTavern's CSRF/auth middleware.
  *
- *   2. Routes under /api/plugins/foundryvtt-to-sillytavern-nhp-uplink/* that the SillyTavern UI
+ *   2. Routes under /api/plugins/sillytavern-foundryvtt-input/* that the SillyTavern UI
  *      extension talks to. Same-origin, so the normal request headers apply.
  *
  * Foundry  --POST /event-->  [inbound queue]  --SSE /stream-->  UI extension
@@ -37,7 +37,25 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PLUGIN_ID = 'foundryvtt-to-sillytavern-nhp-uplink';
+const PLUGIN_ID = 'sillytavern-foundryvtt-input';
+
+// Stamped by the release workflow. Reported to the UI extension so a mismatch
+// can name the version the user actually has, instead of just failing.
+const PLUGIN_VERSION = '0.1.6';
+
+/*
+ * Wire-contract version, shared with the UI extension. Bump it ONLY when a
+ * change breaks an older counterpart -- a renamed route, a changed payload
+ * shape, a newly required header. Ordinary releases leave it alone, because an
+ * unchanged contract means an older half still works fine.
+ *
+ * It exists because only half of this project auto-updates. The UI extension is
+ * a git clone SillyTavern can pull; this plugin is copied in by hand. The two
+ * WILL drift apart, and without an explicit contract number the symptom is a
+ * bare 404 that looks exactly like 'plugin never loaded' -- sending the user off
+ * to check enableServerPlugins, which was never the problem.
+ */
+const PROTOCOL = 1;
 
 /* ------------------------------------------------------------------ */
 /* Config                                                              */
@@ -196,6 +214,8 @@ async function handleStandalone(req, res) {
         sendJson(res, 200, {
             ok: true,
             plugin: PLUGIN_ID,
+            version: PLUGIN_VERSION,
+            protocol: PROTOCOL,
             inboundPending: inbound.length,
             outboundPending: outbound.length,
             uiConnected: sseClients.size > 0,
@@ -269,6 +289,8 @@ function registerRoutes(router) {
     router.get('/status', (req, res) => {
         res.json({
             ok: true,
+            version: PLUGIN_VERSION,
+            protocol: PROTOCOL,
             port: config.port,
             authEnabled: !!config.secret,
             inboundPending: inbound.length,

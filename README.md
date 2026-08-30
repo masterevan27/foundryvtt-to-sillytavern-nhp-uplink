@@ -1,5 +1,13 @@
 # FoundryVTT → SillyTavern NHP Uplink
 
+[![Module version](https://img.shields.io/github/v/release/masterevan27/foundryvtt-to-sillytavern-nhp-uplink?style=for-the-badge&label=MODULE%20VERSION&color=0b6bcb)](https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/latest)
+[![Foundry version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2Fmasterevan27%2Ffoundryvtt-to-sillytavern-nhp-uplink%2Freleases%2Flatest%2Fdownload%2Fmodule.json&query=%24.compatibility.verified&style=for-the-badge&label=FOUNDRY%20VERSION&color=fe6a00)](https://foundryvtt.com/)
+[![Lancer system](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2Fmasterevan27%2Ffoundryvtt-to-sillytavern-nhp-uplink%2Freleases%2Flatest%2Fdownload%2Fmodule.json&query=%24.relationships.systems%5B0%5D.compatibility.minimum&style=for-the-badge&label=LANCER%20SYSTEM&prefix=v&suffix=%2B&color=6c3fa8)](https://foundryvtt.com/packages/lancer)
+
+[![Downloads (total)](https://img.shields.io/github/downloads/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/module.zip?style=for-the-badge&label=DOWNLOADS%20(TOTAL)&color=2ea043)](https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases)
+[![Downloads (latest)](https://img.shields.io/github/downloads-pre/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/latest/module.zip?style=for-the-badge&label=DOWNLOADS%20(LATEST)&color=2ea043)](https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/latest)
+[![License](https://img.shields.io/badge/LICENSE-GPL--3.0--or--later-blue?style=for-the-badge)](LICENSE)
+
 Streams live [LANCER](https://massifpress.com/lancer) combat out of [Foundry VTT](https://foundryvtt.com/)
 into [SillyTavern](https://github.com/SillyTavern/SillyTavern), so a character
 card can act as an AI GM that narrates the fight, voices NPCs, and reacts to
@@ -9,11 +17,16 @@ The AI never rolls dice or decides outcomes. Foundry stays the authority on
 mechanics; the uplink hands the model a faithful, structured account of what
 occurred and asks it for fiction.
 
-**Why "NHP Uplink"?** In LANCER, an _NHP_ — Non-Human Person — is the setting's
-term for a machine intelligence: a paracausal mind run inside a shackled cage,
-riding along with a pilot and talking back. That is exactly the role the AI plays
-here, so the module is the _uplink_ that carries the table's combat down the wire
-to it and its narration back up.
+<details>
+<summary><strong>Why "NHP Uplink"?</strong></summary>
+
+In LANCER, an _NHP_ — Non-Human Person — is the setting's term for a machine
+intelligence: a paracausal mind run inside a shackled cage, riding along with a
+pilot and talking back. That is exactly the role the AI plays here, so the module
+is the _uplink_ that carries the table's combat down the wire to it and its
+narration back up.
+
+</details>
 
 ```
 [FOUNDRY VTT // TABLE FEED]
@@ -51,14 +64,18 @@ described in [Architecture](#architecture).
 
 ![The Foundry table feed and the AI GM's replies, alternating in SillyTavern](examples/FoundryVTT%20Table%20Feed%20in%20SillyTavern.png)
 
-**Out of combat, with SillyTavern's own extras.** None of this comes from the
-uplink — it is SillyTavern's ComfyUI image generation (and TTS, which a
-screenshot cannot show) working from the same chat and characters. It is here
-because it is the payoff for keeping the AI GM inside SillyTavern rather than
-bolting a chat window onto Foundry: everything SillyTavern already does comes
-along for free.
+<details>
+<summary><strong>Out of combat, with SillyTavern's own extras</strong> — ComfyUI image generation and TTS</summary>
+
+None of this comes from the uplink — it is SillyTavern's ComfyUI image
+generation (and TTS, which a screenshot cannot show) working from the same chat
+and characters. It is here because it is the payoff for keeping the AI GM inside
+SillyTavern rather than bolting a chat window onto Foundry: everything
+SillyTavern already does comes along for free.
 
 ![An out-of-combat AI GM scene illustrated by ComfyUI image generation](examples/SillyTavern%20Extra%20Immersion%20with%20ComfyUI%20and%20TTS.png)
+
+</details>
 
 ---
 
@@ -114,12 +131,18 @@ foundryvtt-to-sillytavern-nhp-uplink   <- SillyTavern server plugin, port 5088
 SillyTavern UI extension (browser) -> character card -> LLM
 ```
 
-The server plugin deliberately runs **its own HTTP listener on port 5088**
-rather than serving Foundry through SillyTavern's normal Express app. Foundry's
-requests are cross-origin, and SillyTavern's Helmet and CSRF middleware reject
-them — the preflight comes back with no `Access-Control-Allow-Origin`, so the
-browser blocks the POST before it is ever sent. The separate listener sidesteps
-that entirely.
+The server plugin deliberately runs **its own HTTP listener on port 5088** rather
+than serving Foundry through SillyTavern's normal Express app.
+
+<details>
+<summary>Why a separate listener, and not SillyTavern's own port</summary>
+
+Foundry's requests are cross-origin, and SillyTavern's Helmet and CSRF middleware
+reject them — the preflight comes back with no `Access-Control-Allow-Origin`, so
+the browser blocks the POST before it is ever sent. The separate listener
+sidesteps that entirely.
+
+</details>
 
 **Do not point Foundry at SillyTavern's web UI port.** That is the most common
 misconfiguration; see [Troubleshooting](#troubleshooting).
@@ -214,7 +237,9 @@ the image metadata, which is SillyTavern's native character format.
 The card instructs the model that feed blocks are authoritative mechanical fact
 it must never re-roll or contradict. That instruction is what keeps it narrating
 rather than inventing dice results — if you write your own card, carry it over.
-Three other things in it are worth keeping:
+
+<details>
+<summary>Three other things in the card worth keeping</summary>
 
 - **Name the roll, then wait.** It is told to say what needs rolling and stop,
   rather than narrating an outcome the feed has not reported yet.
@@ -223,6 +248,8 @@ Three other things in it are worth keeping:
 - **Keep it short.** Output is the expensive half of the conversation. The card
   targets one or two paragraphs for a routine beat and reserves length for
   Structure checks, destructions and scene changes.
+
+</details>
 
 ### 5. Point Foundry at the uplink
 
@@ -255,7 +282,12 @@ pilots and hostiles are distinguishable at a glance during a fight.
 
 The theme lives in its own repository,
 [**sillytavern-lancer-ui-theme**](https://github.com/masterevan27/sillytavern-lancer-ui-theme),
-and is installed independently of everything above. Two halves:
+and is installed independently of everything above.
+
+<details>
+<summary>Installing the theme and its controls</summary>
+
+Two halves:
 
 **The extension** (_Lancer Theme Controls_ — separate from the uplink extension
 in step 3) — SillyTavern's **Extensions → Install extension**, paste:
@@ -271,6 +303,8 @@ in the theme dropdown. Reload the browser afterwards.
 The theme works on its own; the extension only adds the toggles and sliders that
 drive it, so install both if you want to tune it. Full details, palette notes and
 screenshots are in that repository's README.
+
+</details>
 
 ---
 
@@ -297,6 +331,9 @@ Events are buffered and flushed once the table has been quiet for 2.5 seconds
 (configurable), so one attack becomes a single coherent digest rather than six
 fragments.
 
+<details>
+<summary>Every event type the module captures</summary>
+
 - **Lancer flows** — attacks, tech attacks, damage, structure/stress, overcharge,
   overheat, stabilize, cascade, core power, system and talent use. Hooked via
   `lancer.postFlow.*`, which the Lancer system exposes for modules.
@@ -310,6 +347,8 @@ fragments.
   reports where every token ended up. Enable it if you want movement narrated,
   and use **Minimum move to report** to ignore small repositioning.
 - **Player chat** — in-character and out-of-character.
+
+</details>
 
 Non-combatant canvas tokens ("bystanders") are **off by default** and capped when
 enabled — they otherwise inflate every board state with scenery.
@@ -328,7 +367,8 @@ In Foundry chat:
 This is whispered to GMs and reaches the AI tagged as an out-of-character
 directive, which the card is told to obey literally rather than narrate.
 
-A macro API is also available:
+<details>
+<summary>Macro API</summary>
 
 ```js
 const api = game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api;
@@ -337,6 +377,8 @@ api.sendDirective("Describe the dropship arriving.");
 api.snapshotState(); // returns the current board state object
 api.flush(); // force-send whatever is queued, without waiting
 ```
+
+</details>
 
 ---
 
@@ -379,7 +421,10 @@ N unnarrated events** fires anyway once enough has piled up.
 
 **Prompt caching** is the single biggest lever and costs nothing in quality —
 cache reads are a tenth of the input price, and almost all of every request is
-an identical prefix. Enable it in SillyTavern's `config.yaml`:
+an identical prefix.
+
+<details>
+<summary>Enabling it in SillyTavern's <code>config.yaml</code></summary>
 
 ```yaml
 claude:
@@ -393,21 +438,29 @@ pays for itself here, because the significance gate deliberately leaves gaps
 longer than the 5-minute default TTL. Verify it is working on the Anthropic
 Console usage page — cache-read tokens should dominate.
 
+</details>
+
 **Model choice.** Narration over authoritative mechanics does not need the top
 of the range; the card is explicitly told never to adjudicate. Whatever you
 pick, stick with it — caches are model-scoped, so switching models forfeits
 cache reuse.
 
-One cliff to know about: once the chat exceeds your context limit and
-SillyTavern starts dropping the oldest messages, the prefix changes on every
-request and message caching quietly stops paying. Keeping digests compact delays
-that.
+<details>
+<summary>One cliff to know about: context overflow ends cache reuse</summary>
+
+Once the chat exceeds your context limit and SillyTavern starts dropping the
+oldest messages, the prefix changes on every request and message caching quietly
+stops paying. Keeping digests compact delays that.
+
+</details>
 
 ---
 
 ## Troubleshooting
 
-**"Uplink unreachable: Failed to fetch", with no status code.**
+<details>
+<summary><strong>"Uplink unreachable: Failed to fetch", with no status code.</strong></summary>
+
 Almost always the wrong port — Foundry pointed at SillyTavern's web UI instead
 of the uplink listener. SillyTavern's Express app answers the CORS preflight
 without an `Access-Control-Allow-Origin` header, so the browser blocks the
@@ -422,40 +475,77 @@ Expect `{"ok":true,...}`. `lastFoundryContact: null` means Foundry has never
 reached the uplink; `uiConnected` reports whether the SillyTavern extension is
 attached.
 
-**Plugin didn't load.** Confirm `enableServerPlugins: true` in `config.yaml`
-and that you fully restarted the server, not just the browser.
+</details>
 
-**401 errors.** The secret in Foundry's settings doesn't match `config.json`.
+<details>
+<summary><strong>Plugin didn't load.</strong></summary>
 
-**Extension status says "not reachable".** The UI extension reaches the plugin
-through SillyTavern itself, so this means the plugin isn't loaded — same fix as
-above.
+Confirm `enableServerPlugins: true` in `config.yaml` and that you fully restarted
+the server, not just the browser.
 
-**Extension status says "out of date" or "version mismatch".** The plugin _is_
-loaded; the two halves are just at different versions. This is the expected
-failure now that the UI extension auto-updates itself from its own repo while
-the server plugin is still copied in by hand — so the extension can move ahead
-on its own and leave the plugin behind. Re-copy `st-server-plugin/…` into
-SillyTavern's `plugins/` folder and restart the server. Do **not** go looking at
-`enableServerPlugins` for this one; loading was never the problem.
+</details>
 
-**Events arrive but nothing generates.** You're in `manual` or `observe` mode.
+<details>
+<summary><strong>401 errors.</strong></summary>
 
-**Nothing comes back to Foundry.** Check "Relay AI replies back to Foundry chat"
-in the extension, and "Receive AI-GM narration" in Foundry.
+The secret in Foundry's settings doesn't match `config.json`.
 
-**The AI keeps replying to itself.** Narration posted into Foundry carries a flag
-that stops the module re-capturing it, so the AI's own words never come back as a
-table event. If you see feed lines quoting the AI's last message, either the
-module is running stale code (see the next item) or the flag was stripped by
-another module. The fallback guard for that case matches on the speaker's name,
-which only works while Foundry's **Narration speaker name** and the extension's
-**Speaker name in Foundry** hold the same value — both default to `AI GM`. Change
-one and you must change the other.
+</details>
 
-**Code changes don't seem to apply.** Fetch what Foundry actually serves rather
-than trusting the file you edited; with multiple installs it is easy to patch a
-copy nothing loads:
+<details>
+<summary><strong>Extension status says "not reachable".</strong></summary>
+
+The UI extension reaches the plugin through SillyTavern itself, so this means the
+plugin isn't loaded — same fix as above.
+
+</details>
+
+<details>
+<summary><strong>Extension status says "out of date" or "version mismatch".</strong></summary>
+
+The plugin _is_ loaded; the two halves are just at different versions. This is
+the expected failure now that the UI extension auto-updates itself from its own
+repo while the server plugin is still copied in by hand — so the extension can
+move ahead on its own and leave the plugin behind. Re-copy `st-server-plugin/…`
+into SillyTavern's `plugins/` folder and restart the server. Do **not** go
+looking at `enableServerPlugins` for this one; loading was never the problem.
+
+</details>
+
+<details>
+<summary><strong>Events arrive but nothing generates.</strong></summary>
+
+You're in `manual` or `observe` mode.
+
+</details>
+
+<details>
+<summary><strong>Nothing comes back to Foundry.</strong></summary>
+
+Check "Relay AI replies back to Foundry chat" in the extension, and "Receive
+AI-GM narration" in Foundry.
+
+</details>
+
+<details>
+<summary><strong>The AI keeps replying to itself.</strong></summary>
+
+Narration posted into Foundry carries a flag that stops the module re-capturing
+it, so the AI's own words never come back as a table event. If you see feed lines
+quoting the AI's last message, either the module is running stale code (see the
+next item) or the flag was stripped by another module. The fallback guard for
+that case matches on the speaker's name, which only works while Foundry's
+**Narration speaker name** and the extension's **Speaker name in Foundry** hold
+the same value — both default to `AI GM`. Change one and you must change the
+other.
+
+</details>
+
+<details>
+<summary><strong>Code changes don't seem to apply.</strong></summary>
+
+Fetch what Foundry actually serves rather than trusting the file you edited; with
+multiple installs it is easy to patch a copy nothing loads:
 
 ```bash
 curl -s http://localhost:30001/modules/foundryvtt-to-sillytavern-nhp-uplink/scripts/uplink.js | head
@@ -463,9 +553,15 @@ curl -s http://localhost:30001/modules/foundryvtt-to-sillytavern-nhp-uplink/scri
 
 Module JS is cached per page load, so hard-refresh (Ctrl+F5) after any change.
 
-**Verbose diagnostics.** Turn on `debug` in the Foundry module settings and
-watch the browser console; the plugin logs every event when `logEvents` is
-`true` in `config.json`.
+</details>
+
+<details>
+<summary><strong>Verbose diagnostics.</strong></summary>
+
+Turn on `debug` in the Foundry module settings and watch the browser console; the
+plugin logs every event when `logEvents` is `true` in `config.json`.
+
+</details>
 
 ---
 
@@ -492,6 +588,9 @@ leading `v` (e.g. `0.1.5`).
 CI does the version bookkeeping for you. It stamps the version into both
 manifests, commits that to `main`, tags **that** commit, and publishes. The tag
 therefore always points at a tree that declares its own version.
+
+<details>
+<summary>What CI stamps, and why the manifests are treated differently</summary>
 
 The two manifests are consumed differently, which is why the workflow stamps
 them at different points:
@@ -530,7 +629,10 @@ That produces the two URLs that matter:
 release, while `download` is pinned to the tag so Foundry fetches the exact
 version that manifest describes.
 
-### Tagging by hand
+</details>
+
+<details>
+<summary>Tagging by hand</summary>
 
 Pushing a tag still triggers a release, but CI can then only _verify_ the
 version — a tag has already frozen the tree, so nothing can be bumped into it.
@@ -552,6 +654,8 @@ manifest URL keeps returning 404. Check before pushing:
 ```bash
 git ls-tree -r v0.1.5 --name-only | grep release.yml
 ```
+
+</details>
 
 ---
 

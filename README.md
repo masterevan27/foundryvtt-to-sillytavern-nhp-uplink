@@ -39,6 +39,29 @@ HOSTILE:
 
 ---
 
+## Examples
+
+**The table feed in SillyTavern.** Foundry's combat flows arrive as structured
+digests and the AI GM answers each one in turn. Note what it does _not_ do: on
+the natural 20 it names the roll and stops — _"Roll damage and let's see what
+Foundry gives you"_ — instead of inventing the damage itself. That restraint is
+the card's doing, and it is the single most important thing to carry over if you
+write your own. The `BOARD STATE` block under each digest is the live snapshot
+described in [Architecture](#architecture).
+
+![The Foundry table feed and the AI GM's replies, alternating in SillyTavern](examples/FoundryVTT%20Table%20Feed%20in%20SillyTavern.png)
+
+**Out of combat, with SillyTavern's own extras.** None of this comes from the
+uplink — it is SillyTavern's ComfyUI image generation (and TTS, which a
+screenshot cannot show) working from the same chat and characters. It is here
+because it is the payoff for keeping the AI GM inside SillyTavern rather than
+bolting a chat window onto Foundry: everything SillyTavern already does comes
+along for free.
+
+![An out-of-combat AI GM scene illustrated by ComfyUI image generation](examples/SillyTavern%20Extra%20Immersion%20with%20ComfyUI%20and%20TTS.png)
+
+---
+
 ## Install in Foundry
 
 Paste this **Manifest URL** into Foundry's **Add-on Modules → Install Module**:
@@ -142,7 +165,7 @@ installer only understands Foundry modules.
 
 ### 2. SillyTavern server plugin
 
-Copy `st-server-plugin/foundryvtt-to-sillytavern-nhp-uplink/` into
+Copy `st-server-plugin/sillytavern-foundryvtt-input-server-plugin/` into
 SillyTavern's `plugins/` folder, then create its config from the template:
 
 ```bash
@@ -179,7 +202,7 @@ If it says `auth: OFF`, your `secret` is empty — read [Security](#security).
 
 ### 3. SillyTavern UI extension
 
-Copy `st-ui-extension/SillyTavern-NHP-Uplink/` into
+Copy `st-ui-extension/sillytavern-foundryvtt-input/` into
 `data/<your-user>/extensions/` and reload SillyTavern in the browser.
 
 ### 4. AI GM character card
@@ -408,6 +431,14 @@ and that you fully restarted the server, not just the browser.
 through SillyTavern itself, so this means the plugin isn't loaded — same fix as
 above.
 
+**Extension status says "out of date" or "version mismatch".** The plugin _is_
+loaded; the two halves are just at different versions. This is the expected
+failure now that the UI extension auto-updates itself from its own repo while
+the server plugin is still copied in by hand — so the extension can move ahead
+on its own and leave the plugin behind. Re-copy `st-server-plugin/…` into
+SillyTavern's `plugins/` folder and restart the server. Do **not** go looking at
+`enableServerPlugins` for this one; loading was never the problem.
+
 **Events arrive but nothing generates.** You're in `manual` or `observe` mode.
 
 **Nothing comes back to Foundry.** Check "Relay AI replies back to Foundry chat"
@@ -440,7 +471,7 @@ watch the browser console; the plugin logs every event when `logEvents` is
 
 ## Extending it
 
-`st-ui-extension/SillyTavern-NHP-Uplink/format.js` holds all digest formatting
+`st-ui-extension/sillytavern-foundryvtt-input/format.js` holds all digest formatting
 as pure functions with no DOM or SillyTavern dependencies, so you can test
 changes with plain Node. That is the file to edit for different prose, more or
 less detail, or a different board-state layout.
@@ -468,7 +499,8 @@ them at different points:
 | File                                                   | How users get it                                   | Stamped with                                                                                 |
 | ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `foundry-module/…/module.json`                         | Fetched as a **release asset** by Foundry          | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
-| `st-ui-extension/SillyTavern-NHP-Uplink/manifest.json` | Read straight from the **repo**, copied in by hand | `version` and `homePage`                                                                     |
+| `st-ui-extension/…/manifest.json`                    | Read straight from the **repo**, copied in by hand | `version` and `homePage`                                                                     |
+| `st-server-plugin/…/index.js`                        | Copied in by hand                                  | `PLUGIN_VERSION`, the version it reports to the UI extension                                 |
 
 Both stamped files are then committed to `main` in the same `release: vX.Y.Z`
 commit, and that commit is what gets tagged. The extension manifest _has_ to be

@@ -20,7 +20,7 @@
 /**
  * SillyTavern UI extension: FoundryVTT to SillyTavern NHP Uplink
  *
- * Streams combat events out of the foundryvtt-to-sillytavern-nhp-uplink server plugin, folds them
+ * Streams combat events out of the sillytavern-foundryvtt-input server plugin, folds them
  * into a readable Lancer combat digest, drops that into the chat, optionally
  * triggers a generation, and relays the AI GM's reply back to Foundry.
  *
@@ -40,7 +40,14 @@
 import { buildDigest, formatState, weighEvents } from './format.js';
 
 const EXT_ID = 'nhpUplink';
-const API = '/api/plugins/foundryvtt-to-sillytavern-nhp-uplink';
+const API = '/api/plugins/sillytavern-foundryvtt-input';
+
+/**
+ * Must equal PROTOCOL in the server plugin -- see the longer note there. In
+ * short: this half auto-updates and the plugin half does not, so they drift,
+ * and this number is what turns that drift into a message that says what to do.
+ */
+const PROTOCOL = 1;
 
 /** script.js extension_prompt_types.IN_CHAT / extension_prompt_roles.SYSTEM. */
 const IN_CHAT = 1;
@@ -330,6 +337,15 @@ async function relayToFoundry(text) {
 /* UI                                                                  */
 /* ------------------------------------------------------------------ */
 
+async function ownVersion() {
+    try {
+        const res = await fetch(new URL('./manifest.json', import.meta.url));
+        return (await res.json()).version ?? 'unknown';
+    } catch {
+        return 'unknown';
+    }
+}
+
 function updateStatus(text) {
     const el = document.getElementById('nhp_uplink_status');
     if (el) el.textContent = text;
@@ -513,8 +529,36 @@ jQuery(async () => {
 
     try {
         const res = await fetch(`${API}/status`, { headers: requestHeaders() });
-        const status = await res.json();
-        updateStatus(`plugin up, Foundry listener on port ${status.port}`);
+
+        if (res.status === 404) {
+            // The route is absent rather than erroring, which is exactly what an
+            // OLD plugin looks like once the plugin id changed -- it is still
+            // loaded and running, just answering on the previous path. Saying
+            // 'not reachable' here would send the user to config.yaml for a
+            // problem that has nothing to do with loading.
+            updateStatus(
+                `server plugin is out of date - it does not serve ${API}. `
+                + 'Re-copy st-server-plugin into SillyTavern/plugins and restart.',
+            );
+        } else if (!res.ok) {
+            updateStatus(`uplink plugin error - HTTP ${res.status}`);
+        } else {
+            const status = await res.json();
+            if (status.protocol !== PROTOCOL) {
+                // A plugin older than this check has no protocol field at all,
+                // so treat missing as mismatched rather than waving it through.
+                const theirs = status.version ?? 'older than 0.1.7';
+                updateStatus(
+                    `version mismatch - server plugin is ${theirs}, extension is ${await ownVersion()}. `
+                    + 'Re-copy st-server-plugin into SillyTavern/plugins and restart.',
+                );
+                console.warn(
+                    `[nhp-uplink] protocol mismatch: plugin ${status.protocol ?? 'none'}, extension ${PROTOCOL}`,
+                );
+            } else {
+                updateStatus(`plugin up, Foundry listener on port ${status.port}`);
+            }
+        }
     } catch {
         updateStatus('uplink plugin not reachable - is it enabled in config.yaml?');
     }

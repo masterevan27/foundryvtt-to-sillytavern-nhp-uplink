@@ -54,15 +54,55 @@ HOSTILE:
 
 ## Examples
 
-**The table feed in SillyTavern.** Foundry's combat flows arrive as structured
-digests and the AI GM answers each one in turn. Note what it does _not_ do: on
-the natural 20 it names the roll and stops — _"Roll damage and let's see what
-Foundry gives you"_ — instead of inventing the damage itself. That restraint is
-the card's doing, and it is the single most important thing to carry over if you
-write your own. The `BOARD STATE` block under each digest is the live snapshot
-described in [Architecture](#architecture).
+Four screenshots, collapsed so the page stays short. The first three are the
+same exchange — a crit on a simulated Assault mech — seen from SillyTavern, from
+Foundry, and from the table.
+
+<details>
+<summary><strong>The table feed in SillyTavern</strong> — what the AI GM actually receives, and how it answers</summary>
+
+Foundry's combat flows arrive as structured digests and the AI GM answers each
+one in turn. Note what it does _not_ do: on the natural 20 it names the roll and
+stops — _"Roll damage and let's see what Foundry gives you"_ — instead of
+inventing the damage itself. That restraint is the card's doing, and it is the
+single most important thing to carry over if you write your own. The
+`BOARD STATE` block under each digest is the live snapshot described in
+[Architecture](#architecture).
 
 ![The Foundry table feed and the AI GM's replies, alternating in SillyTavern](examples/FoundryVTT%20Table%20Feed%20in%20SillyTavern.png)
+
+</details>
+
+<details>
+<summary><strong>The replies coming back into Foundry</strong> — the return leg of the round trip</summary>
+
+The same exchange seen from the other end. AI GM messages land in Foundry's own
+chat log interleaved with the Lancer roll cards that prompted them — crit,
+narration, damage, narration — so players who never open SillyTavern still read
+everything the AI GM says. Note the last message: it reacts to the structure
+result Foundry rolled, then closes the scene, because the feed told it the field
+was clear.
+
+Narration posted this way carries a flag that stops the module capturing its own
+output; the two settings that turn the leg on are in
+[Troubleshooting](#troubleshooting).
+
+![AI GM narration posted back into Foundry's chat log between Lancer roll cards](examples/SillyTavern%20AI%20GM%20Feed%20in%20FoundryVTT.png)
+
+</details>
+
+<details>
+<summary><strong>The whole thing at the table</strong> — board and AI GM in one Foundry window</summary>
+
+Board on the left, AI GM in the sidebar on the right, both live. This is the
+argument for the return leg: the GM runs the fight in Foundry and never switches
+windows to read the narration — SillyTavern is doing the work off-screen. Every
+number in the sidebar came from Foundry, the model only wrote the prose around
+them.
+
+![A Lancer battle in Foundry with AI GM narration in the chat sidebar](examples/FoundryVTT%20simulated%20combat.png)
+
+</details>
 
 <details>
 <summary><strong>Out of combat, with SillyTavern's own extras</strong> — ComfyUI image generation and TTS</summary>

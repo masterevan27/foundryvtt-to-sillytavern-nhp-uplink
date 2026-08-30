@@ -63,3 +63,10 @@ build/
 # Claude Stuff
 # ---------------------------------------------------------------------------
 .claude/launch.json
+
+# ---------------------------------------------------------------------------
+# Generated at build time
+# ---------------------------------------------------------------------------
+# Compiled from CHANGELOG.md by tools/build-changelog.mjs. Ships in module.zip,
+# but committing it would mean two copies of the notes, which is how they drift.
+foundry-module/foundryvtt-to-sillytavern-nhp-uplink/changelog.json

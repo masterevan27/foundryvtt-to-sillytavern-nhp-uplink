@@ -125,6 +125,28 @@ jobs:
           echo "--- stamped manifest ---"
           cat module.json
 
+      # Compiles CHANGELOG.md into the changelog.json that ships inside the zip
+      # and drives the module's "what's new" dialog. Generated rather than
+      # committed: it is a build artifact of the file above it, and having two
+      # copies of the notes in the repo is how they drift.
+      #
+      # A release with no section written for it falls back to commit subjects
+      # (with a warning) instead of failing. Cutting a release is the moment
+      # when blocking on prose is least welcome, and a thin changelog still
+      # beats the dialog silently showing nothing.
+      - name: Build the changelog
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          node tools/build-changelog.mjs \
+            --out "$MODULE_DIR/changelog.json" \
+            --version "$VERSION" \
+            --repo-url "$REPO_URL" \
+            --from-git
+          echo "--- changelog.json (newest entry) ---"
+          jq '.source, .entries[0]' "$MODULE_DIR/changelog.json"
+
       # Everything here must pass BEFORE anything is committed, tagged or
       # published -- a failure at this point leaves the repo untouched.
       - name: Sanity-check the manifests
@@ -142,6 +164,15 @@ jobs:
           for f in $(jq -r '.styles // [] | .[]' module.json); do
             test -f "$f" || { echo "::error::stylesheet missing from package: $f"; exit 1; }
           done
+
+          # The dialog reads this at runtime, so a missing or stale file means
+          # players are told nothing changed in a release that changed things.
+          jq -e --arg v "$VERSION" '[.entries[].version] | index($v) != null' \
+             changelog.json > /dev/null || {
+               echo "::error::changelog.json has no entry for $VERSION. Found:"
+               jq -c '[.entries[].version]' changelog.json
+               exit 1
+             }
 
           cd "$GITHUB_WORKSPACE/$ST_EXT_DIR"
           jq -e --arg v "$VERSION" --arg home "$REPO_URL" \

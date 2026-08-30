@@ -87,9 +87,10 @@ Paste this **Manifest URL** into Foundry's **Add-on Modules → Install Module**
 https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/latest/download/module.json
 ```
 
-That covers the Foundry half and enables update checks. The SillyTavern plugin
-and extension are copied in by hand — see [Install](#install) for all six steps,
-plus an optional seventh for the [Lancer UI theme](#7-lancer-ui-theme-optional).
+That covers the Foundry half and enables update checks. The SillyTavern
+extension installs from its own repository URL and the server plugin is copied
+in by hand — see [Install](#install) for all six steps, plus an optional seventh
+for the [Lancer UI theme](#7-lancer-ui-theme-optional).
 
 ---
 
@@ -183,8 +184,8 @@ Installing this way means no automatic update checks.
 
 </details>
 
-The SillyTavern half below still has to be copied in by hand — Foundry's
-installer only understands Foundry modules.
+The SillyTavern half below installs separately — Foundry's installer only
+understands Foundry modules.
 
 ### 2. SillyTavern server plugin
 
@@ -225,8 +226,38 @@ If it says `auth: OFF`, your `secret` is empty — read [Security](#security).
 
 ### 3. SillyTavern UI extension
 
-Copy `st-ui-extension/sillytavern-foundryvtt-input/` into
+The extension is published in its own repository,
+[**sillytavern-foundryvtt-input**](https://github.com/masterevan27/sillytavern-foundryvtt-input),
+so SillyTavern's own installer can reach it. In SillyTavern, go to
+**Extensions → Install extension** and paste:
+
+```
+https://github.com/masterevan27/sillytavern-foundryvtt-input
+```
+
+Reload the browser afterwards. Installed this way the extension is a clone, so
+SillyTavern can update it in place when a new release is published.
+
+<details>
+<summary>Manual install instead</summary>
+
+Copy `st-ui-extension/sillytavern-foundryvtt-input/` from this repo into
 `data/<your-user>/extensions/` and reload SillyTavern in the browser.
+
+Installing this way means no automatic updates.
+
+</details>
+
+<details>
+<summary>Why it lives in a second repository</summary>
+
+SillyTavern's installer only accepts a repo with `manifest.json` at the **root**,
+which this one cannot provide — the extension is one of three components here.
+That repo is therefore a generated mirror, rewritten wholesale by this repo's
+release workflow from `st-ui-extension/sillytavern-foundryvtt-input/`. Nothing is
+developed there; open issues and pull requests against **this** repository.
+
+</details>
 
 ### 4. AI GM character card
 
@@ -598,13 +629,20 @@ them at different points:
 | File                                                   | How users get it                                   | Stamped with                                                                                 |
 | ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `foundry-module/…/module.json`                         | Fetched as a **release asset** by Foundry          | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
-| `st-ui-extension/…/manifest.json`                    | Read straight from the **repo**, copied in by hand | `version` and `homePage`                                                                     |
+| `st-ui-extension/…/manifest.json`                    | Mirrored to the **extension repo** and installed from there | `version` and `homePage`                                                            |
 | `st-server-plugin/…/index.js`                        | Copied in by hand                                  | `PLUGIN_VERSION`, the version it reports to the UI extension                                 |
 
 Both stamped files are then committed to `main` in the same `release: vX.Y.Z`
 commit, and that commit is what gets tagged. The extension manifest _has_ to be
-committed — it is copied out of a clone rather than downloaded from a release,
-so stamping it only inside a build artifact would reach nobody.
+committed — it is synced out of the tagged tree rather than out of a build
+artifact, so stamping it only in an artifact would reach nobody.
+
+A separate `mirror` job then copies `st-ui-extension/sillytavern-foundryvtt-input/` to
+[`masterevan27/sillytavern-foundryvtt-input`](https://github.com/masterevan27/sillytavern-foundryvtt-input)
+with `manifest.json` at the root and `auto_update` flipped on, which is what
+users actually install from. It runs separately from the release job on purpose:
+a mirror failure goes red without retracting a release that has already
+published.
 
 `module.json` is committed alongside it mostly so the repo does not contradict
 the release it just cut. Note the consequence: between releases, the repo copy's

@@ -25,42 +25,19 @@
  * user acknowledged lives in a hidden client-scoped setting, so everyone at the
  * table sees it once on their own machine.
  *
- * To ship notes with a release: add an entry to the top of CHANGELOG whose
- * `version` matches the new module.json version. Everything newer than the
- * user's acknowledged version is shown, so a user who skips a few versions gets
- * every entry they missed.
+ * The notes are NOT maintained here. They are compiled from the repository's
+ * CHANGELOG.md into changelog.json at release time and shipped inside
+ * module.zip, so cutting a release is the only thing that has to happen for the
+ * right notes to appear. Nothing in this file needs editing per version -- the
+ * version itself comes from the manifest, which CI stamps.
+ *
+ * See tools/build-changelog.mjs, and CHANGELOG.md for the section format.
  */
 
 const MOD = "foundryvtt-to-sillytavern-nhp-uplink";
 
-/* ------------------------------------------------------------------ */
-/* Release notes                                                       */
-/* ------------------------------------------------------------------ */
-
-/**
- * Newest first. `body` may contain simple HTML. `link` is optional.
- * @type {Array<{version: string, date: string, title: string, body: string,
- *               link?: {label: string, hint: string, url: string}}>}
- */
-const CHANGELOG = [
-  {
-    version: "0.1.7",
-    date: "2026-08-30",
-    title: "Mission briefings",
-    body: "Scene and journal briefings are now pushed to the AI GM feed, so the NHP opens a fight already knowing the situation.",
-    link: {
-      label: "Uplink on GitHub",
-      hint: "Setup notes and the full release history",
-      url: "https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink",
-    },
-  },
-];
-
-/** Shown above the entries the very first time the module runs. */
-const WELCOME =
-  "Thanks for installing the NHP Uplink. Point it at your SillyTavern uplink " +
-  "plugin under <strong>Configure Settings &rarr; Module Settings</strong>, " +
-  "then start a combat and the AI GM will start narrating.";
+/** Where the compiled notes live inside the installed module. */
+const CHANGELOG_PATH = `modules/${MOD}/changelog.json`;
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -82,16 +59,19 @@ function esc(text) {
   return String(text ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
 }
 
-function currentVersion() {
-  return game.modules.get(MOD)?.version ?? "0.0.0";
+/**
+ * The notes are authored as markdown, but only two inline forms are worth
+ * supporting: `code` for commands like /brief, and **bold**. Everything is
+ * escaped first, so nothing in the changelog can inject markup.
+ */
+function inline(text) {
+  return esc(text)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 }
 
-/** Entries strictly newer than `lastSeen`; just the latest on a fresh install. */
-function entriesSince(lastSeen) {
-  if (!lastSeen) return CHANGELOG.slice(0, 1);
-  return CHANGELOG.filter((e) =>
-    foundry.utils.isNewerVersion(e.version, lastSeen),
-  );
+function currentVersion() {
+  return game.modules.get(MOD)?.version ?? "0.0.0";
 }
 
 function hostOf(url) {
@@ -103,25 +83,105 @@ function hostOf(url) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Loading the compiled notes                                          */
+/* ------------------------------------------------------------------ */
+
+let cached = null;
+
+/**
+ * Read changelog.json out of the installed module. A world served under a route
+ * prefix needs getRoute() to resolve the path, so use it when the core provides
+ * it.
+ */
+async function loadChangelog() {
+  if (cached) return cached;
+
+  const path = foundry.utils.getRoute?.(CHANGELOG_PATH) ?? `/${CHANGELOG_PATH}`;
+  try {
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    cached = Array.isArray(data?.entries) ? data.entries : [];
+  } catch (err) {
+    // A hand-copied install, or a zip built before the changelog step existed.
+    log("could not read changelog.json", err);
+    cached = [];
+  }
+  return cached;
+}
+
+/**
+ * A version with no notes still deserves to say something, rather than the
+ * silent nothing that made the first version of this dialog useless.
+ */
+function placeholderEntry(version) {
+  const repo = game.modules.get(MOD)?.url;
+  return {
+    version,
+    date: null,
+    title: "",
+    summary: "This version shipped without release notes.",
+    notes: [],
+    link: repo
+      ? {
+          label: "Release notes",
+          url: `${repo}/releases`,
+          hint: "The full history on GitHub",
+        }
+      : null,
+  };
+}
+
+/** Entries strictly newer than `lastSeen`; just the latest on a fresh install. */
+function entriesSince(entries, lastSeen) {
+  if (!lastSeen) return entries.slice(0, 1);
+  return entries.filter((e) => foundry.utils.isNewerVersion(e.version, lastSeen));
+}
+
+/* ------------------------------------------------------------------ */
 /* Rendering                                                           */
 /* ------------------------------------------------------------------ */
 
 function renderEntry(entry) {
-  const link = entry.link
+  const date = entry.date
+    ? `<div class="nhp-whatsnew__date">${esc(entry.date)}</div>`
+    : "";
+
+  const summary = entry.summary
+    ? `<div class="nhp-whatsnew__body">${inline(entry.summary)}</div>`
+    : "";
+
+  const notes = entry.notes?.length
+    ? `<ul class="nhp-whatsnew__notes">${entry.notes
+        .map((n) => `<li>${inline(n)}</li>`)
+        .join("")}</ul>`
+    : "";
+
+  const link = entry.link?.url
     ? `<a class="nhp-whatsnew__link" href="${esc(entry.link.url)}" target="_blank" rel="noopener noreferrer">
          <span class="nhp-whatsnew__link-label">${esc(entry.link.label)}</span>
-         <span class="nhp-whatsnew__link-hint">${esc(entry.link.hint)}</span>
+         ${entry.link.hint ? `<span class="nhp-whatsnew__link-hint">${esc(entry.link.hint)}</span>` : ""}
          <span class="nhp-whatsnew__link-host">${esc(hostOf(entry.link.url))}</span>
        </a>`
     : "";
 
+  // A generated entry has no title of its own, so the version carries the
+  // heading alone rather than reading "Version 0.1.8 0.1.8".
+  const heading = entry.title
+    ? `${esc(entry.title)} ${esc(entry.version)}`
+    : `Version ${esc(entry.version)}`;
+
   return `<section class="nhp-whatsnew__entry">
-      <h3 class="nhp-whatsnew__title">${esc(entry.title)} ${esc(entry.version)}</h3>
-      <div class="nhp-whatsnew__date">${esc(entry.date)}</div>
-      <div class="nhp-whatsnew__body">${entry.body}</div>
-      ${link}
+      <h3 class="nhp-whatsnew__title">${heading}</h3>
+      ${date}${summary}${notes}${link}
     </section>`;
 }
+
+/** Shown above the entries the very first time the module runs. */
+const WELCOME =
+  "Thanks for installing the NHP Uplink. Point it at your SillyTavern uplink " +
+  "plugin under <strong>Configure Settings &rarr; Module Settings</strong>, " +
+  "then start a combat and the AI GM will start narrating.";
 
 function renderContent(entries, { welcome = false } = {}) {
   const intro = welcome ? `<p class="nhp-whatsnew__welcome">${WELCOME}</p>` : "";
@@ -172,7 +232,8 @@ export async function showWhatsNew({ force = false } = {}) {
   const firstRun = !lastSeen;
 
   if (force) {
-    await openDialog(CHANGELOG);
+    const all = await loadChangelog();
+    await openDialog(all.length ? all : [placeholderEntry(version)]);
     await game.settings.set(MOD, "lastSeenVersion", version);
     return true;
   }
@@ -189,11 +250,12 @@ export async function showWhatsNew({ force = false } = {}) {
   // Same version, or a downgrade: nothing to say.
   if (!firstRun && !foundry.utils.isNewerVersion(version, lastSeen)) return false;
 
-  const entries = entriesSince(lastSeen);
-  if (!entries.length) {
-    await game.settings.set(MOD, "lastSeenVersion", version);
-    return false;
-  }
+  const all = await loadChangelog();
+  let entries = entriesSince(all, lastSeen);
+
+  // The version moved but the changelog does not cover it. Say so rather than
+  // staying silent, which just looks like the update did nothing.
+  if (!entries.length) entries = [placeholderEntry(version)];
 
   await openDialog(entries, { welcome: firstRun });
   await game.settings.set(MOD, "lastSeenVersion", version);

@@ -106,11 +106,6 @@ jobs:
              "$MODULE_DIR/module.json" > mod.tmp
           mv mod.tmp "$MODULE_DIR/module.json"
 
-          # The server plugin has no manifest to stamp -- it reports its version
-          # from a constant, so the constant is what gets rewritten.
-          sed -i -E "s/^const PLUGIN_VERSION = '[^']*';/const PLUGIN_VERSION = '$VERSION';/" "$ST_PLUGIN_DIR/index.js"
-          grep -n "^const PLUGIN_VERSION" "$ST_PLUGIN_DIR/index.js"
-
           echo "--- stamped extension manifest ---"
           cat "$ST_EXT_DIR/manifest.json"
 
@@ -156,29 +151,7 @@ jobs:
           test -f "$(jq -r '.js' manifest.json)"  || { echo "::error::manifest js file missing"; exit 1; }
           test -f "$(jq -r '.css' manifest.json)" || { echo "::error::manifest css file missing"; exit 1; }
           node --check "$(jq -r '.js' manifest.json)"
-          cd "$GITHUB_WORKSPACE"
-          node --check "$ST_PLUGIN_DIR/index.js"
-          grep -qF "const PLUGIN_VERSION = '$VERSION';" "$ST_PLUGIN_DIR/index.js" || {
-            echo "::error::PLUGIN_VERSION in $ST_PLUGIN_DIR/index.js does not declare $VERSION."
-            echo "::error::On a hand-pushed tag, bump it yourself and re-tag, or cut the release from the Actions tab."
-            exit 1
-          }
-
-          # The UI extension auto-updates and the server plugin does not, so the
-          # two halves drift by design. PROTOCOL is what makes that drift
-          # diagnosable -- if they disagree at BUILD time the check itself is
-          # broken, and every user would get a bogus mismatch warning.
-          P_SRV=$(grep -E "^const PROTOCOL = [0-9]+;" "$ST_PLUGIN_DIR/index.js" | tr -dc '0-9')
-          P_EXT=$(grep -E "^const PROTOCOL = [0-9]+;" "$ST_EXT_DIR/index.js" | tr -dc '0-9')
-          if [ -z "$P_SRV" ] || [ -z "$P_EXT" ]; then
-            echo "::error::Could not read PROTOCOL from both halves (plugin='$P_SRV' extension='$P_EXT')."
-            exit 1
-          fi
-          if [ "$P_SRV" != "$P_EXT" ]; then
-            echo "::error::PROTOCOL disagrees at build time: plugin=$P_SRV extension=$P_EXT. Bump both together."
-            exit 1
-          fi
-          echo "manifests and scripts OK (protocol $P_SRV)"
+          echo "manifests and scripts OK"
 
       # Only now is it safe to write to the repo. Tags pushed with GITHUB_TOKEN
       # do not start another workflow run, so this cannot loop back into the
@@ -191,7 +164,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json" "$ST_PLUGIN_DIR/index.js"
+          git add "$ST_EXT_DIR/manifest.json" "$MODULE_DIR/module.json"
           if git diff --staged --quiet; then
             echo "Manifests already declare $VERSION; tagging the current commit."
           else

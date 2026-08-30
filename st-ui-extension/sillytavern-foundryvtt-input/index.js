@@ -37,7 +37,7 @@
  *      the cached prefix, so it does not invalidate prompt caching.
  */
 
-import { buildDigest, formatState, weighEvents } from './format.js';
+import { GM_DIRECTED_TYPES, buildDigest, formatState, weighEvents } from './format.js';
 
 const EXT_ID = 'nhpUplink';
 const API = '/api/plugins/sillytavern-foundryvtt-input';
@@ -135,7 +135,10 @@ function acceptEvents(events, state) {
     if (state) latestState = state;
 
     for (const e of events) {
-        if (cfg.onlyInCombat && !latestState?.inCombat && e.type !== 'gm_directive') continue;
+        // The GM talking to the AI on purpose is never "table noise", so it
+        // survives the combat-only filter. A briefing especially: it is sent
+        // *before* the fight, which is exactly when this filter is closed.
+        if (cfg.onlyInCombat && !latestState?.inCombat && !GM_DIRECTED_TYPES.has(e.type)) continue;
         buffer.push(e);
     }
     if (buffer.length) {

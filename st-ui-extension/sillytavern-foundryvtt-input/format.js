@@ -114,6 +114,53 @@ function rollLines(event) {
     return out.map((l) => `    ${l}`);
 }
 
+/* ------------------------------------------------------------------ */
+/* Mission briefing                                                    */
+/* ------------------------------------------------------------------ */
+
+export const BRIEFING_HEADER = '[FOUNDRY VTT // MISSION BRIEFING]';
+
+const BRIEF_ITEMS = 12;
+const BRIEF_CONTEXT_LINES = 40;
+
+function briefSection(title, items) {
+    if (!items?.length) return null;
+    return [title, ...items.slice(0, BRIEF_ITEMS).map((i) => `  - ${i}`)].join('\n');
+}
+
+/**
+ * The mission the fight is part of: goals, stakes and situation, laid out the
+ * way the board state is laid out so the two read as one instrument panel.
+ *
+ * Returns null for a briefing-less scene cue, which is what older Foundry
+ * modules send and what `describeEvent` falls back to.
+ */
+export function formatBriefing(event) {
+    const b = event?.briefing;
+    if (!b) return null;
+
+    const head = [];
+    if (b.designation) head.push(b.designation);
+    if (b.title) head.push(String(b.title).toUpperCase());
+    if (event.scene && String(event.scene).toUpperCase() !== String(b.title ?? '').toUpperCase()) {
+        head.push(`DEPLOYMENT  ${event.scene}`);
+    }
+
+    const blocks = [];
+    if (head.length) blocks.push(head.join('\n'));
+    if (b.quote) blocks.push(`"${b.quote}"`);
+
+    const goals = briefSection('GOALS', b.goals);
+    if (goals) blocks.push(goals);
+
+    const stakes = briefSection('STAKES', b.stakes);
+    if (stakes) blocks.push(stakes);
+
+    if (b.context?.length) blocks.push(b.context.slice(0, BRIEF_CONTEXT_LINES).join('\n'));
+
+    return blocks.length ? blocks.join('\n\n') : null;
+}
+
 export function describeEvent(event, cfg = {}) {
     const lines = cfg.maxCardLines ?? 6;
     const who = event.actor ?? 'Someone';
@@ -173,7 +220,10 @@ export function describeEvent(event, cfg = {}) {
             return `[DIRECTIVE FROM ${event.user}]: ${event.text}`;
 
         case 'scene_brief':
-            return `[The GM requests a scene description for ${event.scene ?? 'the current scene'}.]`;
+            return (
+                formatBriefing(event) ??
+                `[The GM requests a scene description for ${event.scene ?? 'the current scene'}.]`
+            );
 
         case 'uplink_connected':
             return `[Foundry connected: world "${event.world ?? '?'}", scene "${event.scene ?? '?'}".]`;
@@ -257,8 +307,12 @@ const SIGNIFICANT_TYPES = new Set([
     'combat_start', 'combat_end', 'gm_directive', 'scene_brief', 'chat',
 ]);
 
-/** The GM talking to the AI directly. Never make these wait out a cooldown. */
-const URGENT_TYPES = new Set(['gm_directive', 'scene_brief']);
+/**
+ * The GM talking to the AI directly. Never make these wait out a cooldown, and
+ * never let the combat-only filter swallow them -- a briefing is sent before
+ * the fight starts, which is precisely when that filter is closed.
+ */
+export const GM_DIRECTED_TYPES = new Set(['gm_directive', 'scene_brief']);
 
 function crossesThreshold(change) {
     if (change.resource === 'structure' || change.resource === 'stress') return true;
@@ -282,7 +336,7 @@ export function weighEvents(events) {
     let reason = null;
 
     for (const e of events) {
-        if (URGENT_TYPES.has(e.type)) return { significant: true, urgent: true, reason: e.type };
+        if (GM_DIRECTED_TYPES.has(e.type)) return { significant: true, urgent: true, reason: e.type };
 
         if (SIGNIFICANT_TYPES.has(e.type)) {
             reason ??= e.type;
@@ -315,9 +369,31 @@ export function weighEvents(events) {
  * Render events as a feed block. Board state is deliberately NOT included --
  * it is injected separately as a single live block, so the chat history does
  * not accumulate one stale snapshot per turn.
+ *
+ * A mission briefing is hoisted out of the feed and banner-headed on its own.
+ * It is standing context for the whole engagement rather than a beat inside
+ * it, and burying "the party is here to find the man who ruined them" between
+ * two damage rolls is exactly how the model loses track of why it matters.
  */
 export function buildDigest(events, cfg = {}) {
-    const described = events.map((e) => describeEvent(e, cfg)).filter(Boolean);
-    if (!described.length) return null;
-    return ['[FOUNDRY VTT // TABLE FEED]', '', described.join('\n')].join('\n');
+    const briefings = [];
+    const feed = [];
+
+    for (const event of events) {
+        if (event.type === 'scene_brief' && event.briefing) {
+            const brief = formatBriefing(event);
+            if (brief) {
+                briefings.push(brief);
+                continue;
+            }
+        }
+        const described = describeEvent(event, cfg);
+        if (described) feed.push(described);
+    }
+
+    const blocks = [];
+    if (briefings.length) blocks.push([BRIEFING_HEADER, '', briefings.join('\n\n')].join('\n'));
+    if (feed.length) blocks.push(['[FOUNDRY VTT // TABLE FEED]', '', feed.join('\n')].join('\n'));
+
+    return blocks.length ? blocks.join('\n\n') : null;
 }

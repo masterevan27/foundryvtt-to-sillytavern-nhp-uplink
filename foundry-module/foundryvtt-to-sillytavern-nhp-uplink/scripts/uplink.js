@@ -105,6 +105,12 @@ const SETTINGS = {
     name: "Send player chat",
     hint: "In-character and out-of-character messages typed by players.",
   },
+  briefingJournal: {
+    type: String,
+    default: "",
+    name: "Fallback briefing journal",
+    hint: "Journal entry name used by /brief when the current scene has no journal linked to it. Leave blank to rely on scene links only.",
+  },
   receiveNarration: {
     type: Boolean,
     default: true,
@@ -934,20 +940,277 @@ function startPolling() {
 }
 
 /* ------------------------------------------------------------------ */
-/* /aigm chat command                                                  */
+/* Mission briefings                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The board state tells the AI what is happening; a briefing tells it what is
+ * at stake. Briefings are authored as ordinary Foundry journal entries and
+ * parsed into goals / stakes / context, so the same document the table reads
+ * is the one the AI GM gets.
+ *
+ * The shape deliberately matches the mission format used by campaign briefing
+ * sites (title, pull-quote, goals, stakes, prose), which means a mission file
+ * written for one can be pasted into a journal entry and works unchanged.
+ */
+
+const BRIEF_MAX_ITEMS = 12;
+const BRIEF_MAX_CONTEXT = 40;
+const BRIEF_MAX_CHARS = 600;
+
+const BRIEF_SECTIONS = [
+  [/^(goals?|objectives?|tasks?)\b/i, "goals"],
+  [/^(stakes?|risks?|consequences?|rewards?)\b/i, "stakes"],
+  [/^(brief|briefing|context|background|situation|summary|orders)\b/i, "context"],
+];
+
+/**
+ * Flatten journal HTML into markdown-ish lines. Going through a common line
+ * form means one parser handles both a journal written with Foundry's editor
+ * and a mission markdown file pasted in as plain text, which arrives as
+ * paragraphs that still carry their own `#` and `-` markers.
+ */
+function briefingLines(html) {
+  const root = document.createElement("div");
+  root.innerHTML = html ?? "";
+  root.querySelectorAll("script, style").forEach((n) => n.remove());
+
+  const lines = [];
+  const push = (value) => {
+    const text = String(value ?? "")
+      .replace(/[\s\u00a0]+/g, " ")
+      .trim();
+    if (text) lines.push(text.slice(0, BRIEF_MAX_CHARS));
+  };
+
+  const walk = (node) => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        for (const line of String(child.textContent).split("\n")) push(line);
+        continue;
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) continue;
+
+      const tag = child.tagName.toLowerCase();
+      if (/^h[1-6]$/.test(tag)) {
+        push(`# ${child.textContent}`);
+      } else if (tag === "ul" || tag === "ol") {
+        for (const li of child.querySelectorAll(":scope > li"))
+          push(`- ${li.textContent}`);
+      } else if (tag === "blockquote") {
+        for (const line of String(child.textContent).split("\n"))
+          push(line.trim() ? `> ${line}` : "");
+      } else if (tag === "hr") {
+        push("---");
+      } else if (tag === "br") {
+        continue;
+      } else if (
+        tag === "p" &&
+        child.children.length &&
+        [...child.children].every((c) => /^(em|i)$/i.test(c.tagName))
+      ) {
+        // A wholly italic paragraph is the mission's pull-quote.
+        push(`_${child.textContent}_`);
+      } else if (
+        child.querySelector("ul, ol, blockquote, p, h1, h2, h3, h4, h5, h6")
+      ) {
+        walk(child);
+      } else {
+        push(child.textContent);
+      }
+    }
+  };
+
+  walk(root);
+  return lines;
+}
+
+function parseBriefing(lines) {
+  const brief = {
+    designation: null,
+    title: null,
+    quote: null,
+    goals: [],
+    stakes: [],
+    context: [],
+  };
+  let section = null;
+
+  for (const line of lines) {
+    if (/^-{3,}$/.test(line)) continue;
+
+    const heading = line.match(/^#+\s*(.+)$/);
+    if (heading) {
+      const text = heading[1].trim();
+
+      const designation = text.match(/^mission\s*(?:\/\/)?\s*#?\s*([\w.-]+)$/i);
+      if (designation) {
+        brief.designation ??= `MISSION // ${designation[1].toUpperCase()}`;
+        section = null;
+        continue;
+      }
+
+      const known = BRIEF_SECTIONS.find(([re]) => re.test(text));
+      if (known) {
+        section = known[1];
+        continue;
+      }
+
+      if (!brief.title) {
+        brief.title = text;
+        section = null;
+        continue;
+      }
+
+      // Any other heading is just a label on the prose that follows it.
+      section = "context";
+      brief.context.push(`${text.toUpperCase()}:`);
+      continue;
+    }
+
+    const bullet = line.match(/^[-*+•]\s+(.+)$/);
+    if (bullet) {
+      const text = bullet[1].trim();
+      if (section === "stakes") brief.stakes.push(text);
+      else if (section === "context") brief.context.push(`- ${text}`);
+      // Unlabelled bullets read as objectives, which is what they almost always are.
+      else brief.goals.push(text);
+      continue;
+    }
+
+    const quote = line.match(/^[_*]{1,2}(.+?)[_*]{1,2}$/);
+    if (quote && !brief.quote && !brief.goals.length && !brief.stakes.length) {
+      brief.quote = quote[1].replace(/^["“]+|["”]+$/g, "").trim();
+      continue;
+    }
+
+    brief.context.push(line.replace(/^>\s*/, ""));
+  }
+
+  brief.goals = brief.goals.slice(0, BRIEF_MAX_ITEMS);
+  brief.stakes = brief.stakes.slice(0, BRIEF_MAX_ITEMS);
+  brief.context = brief.context.slice(0, BRIEF_MAX_CONTEXT);
+  return brief;
+}
+
+/** Text pages of a journal entry, or just the one page a scene points at. */
+function journalHtml(entry, pageId = null) {
+  if (!entry) return "";
+  const pages = entry.pages?.contents ?? [];
+  const scoped = pageId ? pages.filter((p) => p.id === pageId) : [];
+  const use = scoped.length ? scoped : pages;
+  return use
+    .filter((p) => p.type === "text" && p.text?.content)
+    .map((p) => p.text.content)
+    .join("\n");
+}
+
+/**
+ * Where a briefing comes from, in order: the journal linked to the current
+ * scene, then the journal named in settings. Scene-linked wins so that moving
+ * the party to a new map moves the briefing with them.
+ */
+function resolveBriefingSource() {
+  const scene = canvas?.scene ?? null;
+  const linked = scene?.journal ?? null;
+  if (linked) {
+    const html = journalHtml(linked, scene.journalEntryPage ?? null);
+    if (html.trim()) return { name: linked.name, html };
+  }
+
+  const named = String(setting("briefingJournal") ?? "").trim();
+  if (named) {
+    const entry = game.journal?.getName(named) ?? null;
+    if (!entry) log(`briefing journal "${named}" not found`);
+    else {
+      const html = journalHtml(entry);
+      if (html.trim()) return { name: entry.name, html };
+    }
+  }
+
+  return null;
+}
+
+function buildBriefing({ text = null, source = null } = {}) {
+  const raw = text ?? source?.html ?? "";
+  if (!String(raw).trim()) return null;
+
+  const brief = parseBriefing(briefingLines(raw));
+  brief.title ??= source?.name ?? null;
+
+  const empty =
+    !brief.title &&
+    !brief.quote &&
+    !brief.goals.length &&
+    !brief.stakes.length &&
+    !brief.context.length;
+  return empty ? null : brief;
+}
+
+/**
+ * Send the current mission briefing to the AI GM. Falls back to the bare scene
+ * cue this event type has always carried, so nothing breaks when no briefing
+ * has been written yet.
+ */
+function sendBriefing(text = null) {
+  const scene = canvas?.scene ?? null;
+  const source = text ? null : resolveBriefingSource();
+  const briefing = buildBriefing({ text, source });
+
+  const event = enqueue({
+    type: "scene_brief",
+    scene: scene?.name ?? null,
+    source: briefing
+      ? (source?.name ?? `${game.user.name} via /brief`)
+      : undefined,
+    briefing: briefing ?? undefined,
+  });
+
+  if (!event) return null;
+  if (briefing)
+    log(`briefing sent: ${briefing.title ?? scene?.name ?? "untitled"}`);
+  else
+    ui.notifications.info(
+      "No briefing found — sent a plain scene cue. Link a journal to this scene, name one in the module settings, or use /brief <text>.",
+    );
+  return event;
+}
+
+/* ------------------------------------------------------------------ */
+/* /aigm and /brief chat commands                                      */
 /* ------------------------------------------------------------------ */
 
 function registerChatCommand() {
   Hooks.on("chatMessage", (_log, message) => {
     const match = message.match(/^\/aigm\s+([\s\S]+)$/i);
-    if (!match) return;
-    const text = match[1].trim();
-    ChatMessage.create({
-      content: `<em>→ AI GM:</em> ${escapeHtml(text)}`,
-      whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
-      flags: { [MOD]: { directive: text } },
-    });
-    return false;
+    if (match) {
+      const text = match[1].trim();
+      ChatMessage.create({
+        content: `<em>→ AI GM:</em> ${escapeHtml(text)}`,
+        whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+        flags: { [MOD]: { directive: text } },
+      });
+      return false;
+    }
+
+    const brief = message.match(/^\/brief(?:ing)?\b\s*([\s\S]*)$/i);
+    if (brief) {
+      if (!game.user?.isGM) {
+        ui.notifications.warn("Only a GM can send a briefing to the AI GM.");
+        return false;
+      }
+      const text = brief[1].trim();
+      const event = sendBriefing(text || null);
+      if (event) {
+        const label = event.briefing?.title ?? event.scene ?? "current scene";
+        ChatMessage.create({
+          content: `<em>→ AI GM briefing:</em> ${escapeHtml(label)}`,
+          whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+          flags: { [MOD]: { briefing: true } },
+        });
+      }
+      return false;
+    }
   });
 }
 
@@ -1000,8 +1263,13 @@ Hooks.once("ready", () => {
     snapshotState,
     sendDirective: (text) =>
       enqueue({ type: "gm_directive", user: game.user.name, text }),
-    sendSceneBrief: () =>
-      enqueue({ type: "scene_brief", scene: canvas?.scene?.name ?? null }),
+    sendBriefing: (text = null) => sendBriefing(text),
+    // Kept for existing macros: now carries the scene's briefing when one exists.
+    sendSceneBrief: () => sendBriefing(),
+    resolveBriefingSource,
+    // Parse without sending, to check how a journal will be read.
+    previewBriefing: (html = null) =>
+      buildBriefing(html ? { text: html } : { source: resolveBriefingSource() }),
     flush,
   };
 

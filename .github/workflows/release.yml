@@ -136,8 +136,12 @@ jobs:
           jq -e '.id and .version and .manifest and .download and (.esmodules | length > 0)' module.json > /dev/null
           for f in $(jq -r '.esmodules[]' module.json); do
             test -f "$f" || { echo "::error::esmodule missing from package: $f"; exit 1; }
+            # Checked as .mjs so `import`/`export` parse on any runner Node.
+            cp "$f" "$RUNNER_TEMP/check.mjs" && node --check "$RUNNER_TEMP/check.mjs"
           done
-          node --check scripts/uplink.js
+          for f in $(jq -r '.styles // [] | .[]' module.json); do
+            test -f "$f" || { echo "::error::stylesheet missing from package: $f"; exit 1; }
+          done
 
           cd "$GITHUB_WORKSPACE/$ST_EXT_DIR"
           jq -e --arg v "$VERSION" --arg home "$REPO_URL" \

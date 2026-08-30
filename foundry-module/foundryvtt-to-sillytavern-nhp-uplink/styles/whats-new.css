@@ -1,0 +1,128 @@
+/*
+ * FoundryVTT to SillyTavern NHP Uplink — "What's new" dialog styling.
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.nhp-whatsnew-app {
+  --nhp-accent: #c8462f;
+  --nhp-accent-dim: rgba(200, 70, 47, 0.35);
+  --nhp-surface: rgba(0, 0, 0, 0.18);
+}
+
+/* Header bar */
+.nhp-whatsnew-app .window-header {
+  background: var(--nhp-accent);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.nhp-whatsnew-app .window-header .window-title,
+.nhp-whatsnew-app .window-header a,
+.nhp-whatsnew-app .window-header button {
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+/* Body */
+.nhp-whatsnew {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.nhp-whatsnew__welcome {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--nhp-accent);
+  background: var(--nhp-surface);
+  line-height: 1.5;
+}
+
+.nhp-whatsnew__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nhp-whatsnew__entry + .nhp-whatsnew__entry {
+  padding-top: 1rem;
+  border-top: 1px solid var(--nhp-accent-dim);
+}
+
+.nhp-whatsnew__title {
+  margin: 0;
+  border: none;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--nhp-accent);
+}
+
+.nhp-whatsnew__date {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.nhp-whatsnew__body {
+  line-height: 1.5;
+}
+
+.nhp-whatsnew__body ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+/* Link card */
+.nhp-whatsnew__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--nhp-accent-dim);
+  border-radius: 4px;
+  background: var(--nhp-surface);
+  text-decoration: none;
+}
+
+.nhp-whatsnew__link:hover {
+  border-color: var(--nhp-accent);
+  text-shadow: none;
+}
+
+.nhp-whatsnew__link-label {
+  font-weight: 700;
+  color: var(--nhp-accent);
+}
+
+.nhp-whatsnew__link-hint {
+  font-size: 0.85rem;
+}
+
+.nhp-whatsnew__link-host {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+/* Full-width acknowledge button, matching the header accent. */
+.nhp-whatsnew-app .form-footer,
+.nhp-whatsnew-app .dialog-buttons {
+  padding-top: 0.5rem;
+}
+
+.nhp-whatsnew-app .form-footer button,
+.nhp-whatsnew-app .dialog-buttons button {
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  border-color: var(--nhp-accent-dim);
+}
+
+.nhp-whatsnew-app .form-footer button:hover,
+.nhp-whatsnew-app .dialog-buttons button:hover {
+  border-color: var(--nhp-accent);
+}

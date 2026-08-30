@@ -28,7 +28,11 @@
         "lancer"
   ],
   "esmodules": [
-    "scripts/uplink.js"
+    "scripts/uplink.js",
+    "scripts/whats-new.js"
+  ],
+  "styles": [
+    "styles/whats-new.css"
   ],
   "socket": false,
   "url": "https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink",

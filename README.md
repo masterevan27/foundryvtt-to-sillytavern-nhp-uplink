@@ -398,14 +398,111 @@ In Foundry chat:
 This is whispered to GMs and reaches the AI tagged as an out-of-character
 directive, which the card is told to obey literally rather than narrate.
 
+### Mission briefings
+
+The board state tells the AI GM what is happening. A briefing tells it what is
+_at stake_ — which is the one thing a combat feed can never carry. Without it
+the AI knows Sunzi is at 13/22 and has no idea the party is raiding the compound
+to find the man who ended their careers.
+
+Write the mission as an ordinary Foundry journal entry, link it to the scene
+(**Scene Configuration → Journal Entry**), and send it:
+
+```
+/brief
+```
+
+The briefing is whispered to GMs as a receipt and reaches the AI under its own
+banner, ahead of the table feed. Because it is a GM directive it bypasses the
+significance gate and generates immediately.
+
+`/brief <text>` sends an ad-hoc briefing instead, without touching any journal:
+
+```
+/brief The dropship is on final approach. Flak is heavy and the LZ is hot.
+```
+
+<details>
+<summary><strong>What the journal should look like</strong></summary>
+
+Headings name the sections, lists carry the items, and a wholly italic line is
+read as the mission's pull-quote:
+
+```markdown
+# Mission // #001
+
+## Catfish
+
+_"Life is full of surprises, some good, some not so good..."_
+
+# Goals
+
+- Locate the ship of a lieutenant from the Vector Dogs.
+- Acquire the hash-id of the ship.
+
+# Stakes
+
+- Reputation amongst the higher ups at DIADEM
+
+> Space Station DIADEM 01 is wholly owned by DIADEM CORP.
+```
+
+`Goals` also matches _Objectives_ and _Tasks_; `Stakes` matches _Risks_,
+_Consequences_ and _Rewards_. Anything else becomes context. Unlabelled bullets
+are read as goals. Nothing is mandatory — a journal that is only prose still
+sends as context.
+
+The parser reads both Foundry's own editor markup and markdown pasted in as
+plain text, so a mission file written for a campaign briefing site such as
+[lancer-briefings](https://github.com/Kuenaimaku/lancer-briefings) can be pasted
+into a journal entry unchanged.
+
+</details>
+
+<details>
+<summary><strong>What the AI receives</strong></summary>
+
+```
+[FOUNDRY VTT // MISSION BRIEFING]
+
+MISSION // 001
+CATFISH
+DEPLOYMENT  DIADEM 01 - Docking Ring
+
+"Life is full of surprises, some good, some not so good..."
+
+GOALS
+  - Locate the ship of a lieutenant from the Vector Dogs.
+  - Acquire the hash-id of the ship.
+
+STAKES
+  - Reputation amongst the higher ups at DIADEM
+
+Space Station DIADEM 01 is wholly owned by DIADEM CORP.
+```
+
+A briefing sent mid-combat is hoisted above the turn-by-turn events rather than
+buried between two damage rolls, so the model reads it as standing context for
+the engagement instead of as a beat inside it.
+
+</details>
+
+If the scene has no journal linked, the module falls back to the entry named in
+the **Fallback briefing journal** setting. With neither, `/brief` still sends the
+plain scene cue it always did.
+
 <details>
 <summary>Macro API</summary>
 
 ```js
 const api = game.modules.get("foundryvtt-to-sillytavern-nhp-uplink").api;
-api.sendSceneBrief();
+api.sendBriefing(); // the current scene's mission briefing
+api.sendBriefing("Ad-hoc briefing text."); // same, without a journal
+api.sendSceneBrief(); // alias, kept for existing macros
 api.sendDirective("Describe the dropship arriving.");
 api.snapshotState(); // returns the current board state object
+api.resolveBriefingSource(); // {name, html} of the journal /brief would use
+api.previewBriefing(); // parse it without sending, to check how it reads
 api.flush(); // force-send whatever is queued, without waiting
 ```
 

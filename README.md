@@ -419,6 +419,13 @@ and open `http://127.0.0.1:5089` in a browser. Pick a category, click a
 card to preview its portrait and token, check the ones you want, and
 **Import Selected**.
 
+The **Tables** tab shows every bullet in every table of the NPC
+generator's `npc-generator-tables.md`, letting you disable ones you don't
+want it rolling — without deleting them, so they can be re-enabled later.
+Save your current set of disabled bullets as a named preset, download it,
+and hand the file to someone else; they can import it into their own copy
+of this GUI, preview exactly what it would change, and apply it.
+
 In Foundry, **Game Settings → Configure Settings → FoundryVTT to
 SillyTavern NHP Uplink**, set **Import GUI server URL** to that same
 address (and **Import GUI shared secret** if you set one). The primary GM

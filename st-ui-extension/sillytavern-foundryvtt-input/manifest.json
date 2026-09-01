@@ -6,7 +6,7 @@
   "js": "index.js",
   "css": "style.css",
   "author": "masterevan27",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "homePage": "https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink",
   "auto_update": false
 }

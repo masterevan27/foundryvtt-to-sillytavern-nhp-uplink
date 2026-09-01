@@ -447,10 +447,12 @@ and open `http://127.0.0.1:5089` in a browser. Four tabs:
 - **Tables** — shows every bullet in every table of
   `npc-generator-tables.md` and lets you disable ones you don't want
   rolled, without deleting them, so they can be re-enabled later, and edit
-  each bullet's roll weight (multiplier) in place. Save your current set
-  of disabled bullets as a named preset, download it, and hand the file to
-  someone else; they can import it into their own copy of this GUI,
-  preview exactly what it would change, and apply it.
+  each bullet's roll weight (multiplier) in place. Save your current
+  selection — which bullets are on, and each one's weight — as a named
+  preset, download it, and hand the file to someone else; applying one
+  makes their tables match your selection exactly, disabling anything in
+  a table it covers that isn't part of the preset, so it stays correct
+  even after you add new bullets later.
 
 In Foundry, **Game Settings → Configure Settings → FoundryVTT to
 SillyTavern NHP Uplink**, set **Import GUI server URL** to that same

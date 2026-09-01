@@ -1285,13 +1285,25 @@ elTables.importInput.addEventListener('change', async () => {
 
 function renderPresetPreview(diff) {
   elTables.preview.hidden = false;
+  const changing = diff.willEnable.length + diff.willDisable.length + diff.willReweight.length;
   elTables.previewSummary.textContent =
-    `Will disable ${diff.willDisable.length}, already disabled ${diff.alreadyDisabled.length}, `
-    + `not found locally ${diff.notFound.length}.`;
+    `Will change ${changing} bullet(s): ${diff.willEnable.length} to enable, `
+    + `${diff.willDisable.length} to disable, ${diff.willReweight.length} to reweight. `
+    + `Already matching ${diff.alreadyMatching.length}, not found locally ${diff.notFound.length}.`;
   elTables.previewList.innerHTML = '';
+  for (const { table, text, weight } of diff.willEnable) {
+    const li = document.createElement('li');
+    li.textContent = `${table}: enable "${text}" (x${weight})`;
+    elTables.previewList.appendChild(li);
+  }
+  for (const { table, text, weight } of diff.willReweight) {
+    const li = document.createElement('li');
+    li.textContent = `${table}: reweight "${text}" to x${weight}`;
+    elTables.previewList.appendChild(li);
+  }
   for (const { table, text } of diff.willDisable) {
     const li = document.createElement('li');
-    li.textContent = `${table}: ${text}`;
+    li.textContent = `${table}: disable "${text}"`;
     elTables.previewList.appendChild(li);
   }
   for (const { table, text } of diff.notFound) {

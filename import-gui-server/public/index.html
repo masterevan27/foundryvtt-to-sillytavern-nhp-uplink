@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NHP Uplink — Import Generated Content</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>NHP Uplink</h1>
+  <nav class="tabs" id="tabs">
+    <button type="button" data-tab="import" class="active">Import Generated Art</button>
+    <button type="button" data-tab="create">Create NPC</button>
+    <button type="button" data-tab="traits">Trait Imports</button>
+  </nav>
+</header>
+
+<main>
+
+<section class="tab-panel" id="tab-import">
+  <div class="categories" id="categories"></div>
+
+  <div class="toolbar">
+    <label class="select-all">
+      <input type="checkbox" id="select-all" />
+      Select all not-yet-imported
+    </label>
+    <span class="status" id="status"></span>
+    <button id="import-btn" disabled>Import Selected (0)</button>
+  </div>
+
+  <div class="filters" id="filters">
+    <input type="text" id="filter-search" placeholder="Search name, callsign, traits…" />
+    <div class="filter-rows" id="filter-rows"></div>
+    <button id="add-filter" type="button">+ Add filter</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden>Nothing here yet — run generate-npc.py, then reload.</p>
+</section>
+
+<section class="tab-panel" id="tab-create" hidden>
+  <div class="create-form">
+    <div class="form-grid">
+      <label class="form-field">
+        Count
+        <input type="number" id="create-count" min="1" value="1" />
+      </label>
+      <label class="form-field">
+        Seed <span class="hint">(blank = random)</span>
+        <input type="number" id="create-seed" min="0" />
+      </label>
+      <label class="form-field">
+        Name <span class="hint">(single NPC only)</span>
+        <input type="text" id="create-name" placeholder="rolled if blank" />
+      </label>
+      <label class="form-field">
+        Pronouns
+        <select id="create-pronouns">
+          <option value="">Any</option>
+          <option value="she">she</option>
+          <option value="he">he</option>
+          <option value="they">they</option>
+        </select>
+      </label>
+      <label class="form-field">
+        ComfyUI server <span class="hint">(blank = auto-detect)</span>
+        <input type="text" id="create-server" placeholder="127.0.0.1:8000" />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label><input type="checkbox" id="create-portrait" checked /> Generate portrait</label>
+      <label><input type="checkbox" id="create-token" checked /> Generate token</label>
+      <label><input type="checkbox" id="create-keep-raw" /> Keep raw (pre-background-removal) token</label>
+    </div>
+
+    <h3>Trait overrides <span class="hint">(force specific rolled traits, e.g. Role = a field medic)</span></h3>
+    <div class="filter-rows" id="override-rows"></div>
+    <button id="add-override" type="button">+ Add trait override</button>
+
+    <div class="form-row create-actions">
+      <button id="create-dry-run-btn" type="button">Preview (dry run)</button>
+      <button id="create-generate-btn" type="button">Generate</button>
+    </div>
+
+    <p class="regen-status" id="create-status"></p>
+    <pre class="job-log" id="create-log" hidden></pre>
+  </div>
+</section>
+
+<section class="tab-panel" id="tab-traits" hidden>
+  <div class="toolbar">
+    <label class="select-all">
+      <input type="checkbox" id="trait-select-all" />
+      Select all not-yet-imported
+    </label>
+    <span class="status" id="trait-status"></span>
+    <button id="trait-import-btn" disabled>Import Selected (0)</button>
+  </div>
+
+  <div class="filters" id="trait-filters">
+    <input type="text" id="trait-search" placeholder="Search bullet text, source image…" />
+    <select id="trait-table-filter">
+      <option value="">All tables</option>
+    </select>
+  </div>
+
+  <div class="trait-list" id="trait-list"></div>
+  <p class="empty" id="trait-empty" hidden>No staged trait candidates yet — run the npc-trait-import skill, then reload.</p>
+</section>
+
+</main>
+
+<div class="detail-overlay" id="detail-overlay" hidden>
+  <div class="detail">
+    <button class="detail-close" id="detail-close">&times;</button>
+    <div class="detail-images">
+      <figure>
+        <img id="detail-portrait" alt="Portrait" />
+        <figcaption>Portrait</figcaption>
+      </figure>
+      <figure>
+        <img id="detail-token" alt="Token" />
+        <figcaption>Token</figcaption>
+      </figure>
+    </div>
+    <div class="detail-info">
+      <h2 id="detail-name"></h2>
+      <p id="detail-sub"></p>
+
+      <div class="regen-panel" id="regen-panel" hidden>
+        <h3>Regenerate art</h3>
+        <div class="regen-row">
+          <label><input type="radio" name="regen-which" value="both" checked> Both</label>
+          <label><input type="radio" name="regen-which" value="portrait"> Portrait only</label>
+          <label><input type="radio" name="regen-which" value="token"> Token only</label>
+        </div>
+        <div class="regen-row">
+          <label><input type="radio" name="regen-seed-mode" value="same" checked> Same seed (exact re-render)</label>
+          <label><input type="radio" name="regen-seed-mode" value="specific"> Specific seed
+            <input type="number" id="regen-seed-input" min="0" max="4294967295" disabled>
+          </label>
+          <label><input type="radio" name="regen-seed-mode" value="random"> Random seed</label>
+        </div>
+        <div class="regen-row">
+          <span id="regen-current-seed" class="regen-current-seed"></span>
+          <button id="regen-btn" type="button">Regenerate</button>
+        </div>
+        <p class="regen-status" id="regen-status"></p>
+      </div>
+
+      <table id="detail-traits"></table>
+    </div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="trait-detail-overlay" hidden>
+  <div class="detail">
+    <button class="detail-close" id="trait-detail-close">&times;</button>
+    <div class="detail-info trait-detail-info">
+      <h2 id="trait-detail-table"></h2>
+      <p id="trait-detail-source"></p>
+      <h3>Bullet</h3>
+      <pre id="trait-detail-bullet"></pre>
+      <h3>Placement hint</h3>
+      <p id="trait-detail-placement"></p>
+      <h3>Bookkeeping note</h3>
+      <p id="trait-detail-bookkeeping"></p>
+      <h3>Notes</h3>
+      <p id="trait-detail-notes"></p>
+    </div>
+  </div>
+</div>
+
+<div class="image-zoom" id="image-zoom" hidden>
+  <img id="image-zoom-img" alt="" />
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

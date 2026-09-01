@@ -29,7 +29,8 @@
   ],
   "esmodules": [
     "scripts/uplink.js",
-    "scripts/whats-new.js"
+    "scripts/whats-new.js",
+    "scripts/importer.js"
   ],
   "styles": [
     "styles/whats-new.css"

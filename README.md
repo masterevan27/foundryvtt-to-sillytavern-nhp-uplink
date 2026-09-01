@@ -377,6 +377,59 @@ screenshots are in that repository's README.
 
 </details>
 
+### 8. Import GUI (optional)
+
+Lets a GM browse NPCs rolled by a companion generator script (currently
+`generate-npc.py` in the
+[Lancer TTRPG GM Hub](https://github.com/masterevan27/Lancer-TTRPG-GM-Hub),
+which renders a portrait/token pair per NPC) and pick which ones become
+Actors, instead of hand-copying files through Foundry's file picker. It has
+no dependency on the narration relay above and works whether or not you use
+SillyTavern at all.
+
+Two halves, same shape as the rest of this project — a standalone local
+server, and a piece of the Foundry module that polls it:
+
+```bash
+cd import-gui-server
+cp config.example.json config.json
+```
+
+Edit `config.json`:
+
+```json
+{
+  "port": 5089,
+  "host": "127.0.0.1",
+  "secret": "",
+  "npcManifestPath": "<path to generate-npc.py's .generated-npcs.json>",
+  "foundryDataRoot": "<path to your Foundry install's Data directory>"
+}
+```
+
+An item only shows as importable once its files actually live under
+`foundryDataRoot` — this tool references images in place, it does not copy
+them in for you. Then:
+
+```bash
+node server.js
+```
+
+and open `http://127.0.0.1:5089` in a browser. Pick a category, click a
+card to preview its portrait and token, check the ones you want, and
+**Import Selected**.
+
+In Foundry, **Game Settings → Configure Settings → FoundryVTT to
+SillyTavern NHP Uplink**, set **Import GUI server URL** to that same
+address (and **Import GUI shared secret** if you set one). The primary GM
+client polls it and creates the Actors; a badge on each card flips to
+**Imported** once that's done. Deleting the Actor in Foundry clears the
+badge again on the next poll, so re-importing it later is safe.
+
+Only NPCs exist as generated content today — mechs and spaceships have no
+generator yet, so their categories won't appear until one writes manifest
+entries in the same shape.
+
 ---
 
 ## Security

@@ -132,6 +132,27 @@
     </div>
   </div>
   <p class="empty" id="tables-empty" hidden>No tables found — check npcTablesPath in config.json.</p>
+
+  <div class="presets-panel">
+    <h2>Presets</h2>
+    <div class="preset-list" id="preset-list"></div>
+    <div class="preset-actions">
+      <button id="preset-save-btn" type="button">Save current as preset…</button>
+      <label class="preset-import-label">
+        Import preset…
+        <input type="file" id="preset-import-input" accept="application/json" hidden />
+      </label>
+    </div>
+    <div class="preset-preview" id="preset-preview" hidden>
+      <h3>Preview</h3>
+      <p id="preset-preview-summary"></p>
+      <ul id="preset-preview-list"></ul>
+      <div class="preset-preview-actions">
+        <button id="preset-apply-btn" type="button">Apply</button>
+        <button id="preset-cancel-btn" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 </main>

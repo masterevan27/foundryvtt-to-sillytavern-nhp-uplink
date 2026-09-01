@@ -496,3 +496,30 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
   white-space: nowrap;
 }
 .table-bullet-text { flex: 1; }
+
+.presets-panel { margin-top: 1.5rem; border-top: 1px solid #363b47; padding-top: 1rem; }
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: #1c1f26;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+.preset-name { flex: 1; }
+.preset-date { color: #9aa1ad; font-size: 0.78rem; }
+.preset-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; align-items: center; }
+.preset-import-label {
+  background: #262a33;
+  border: 1px solid #363b47;
+  color: #e6e6e6;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.preset-preview { margin-top: 0.8rem; background: #1c1f26; border-radius: 6px; padding: 0.7rem; }
+.preset-preview-not-found { color: #e0a458; }
+.preset-preview-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; }

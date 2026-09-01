@@ -655,10 +655,13 @@ function switchTab(tab) {
   if (tab === 'traits') refreshTraitCandidates().catch((err) => {
     elTraits.status.textContent = `Failed to load: ${err.message}`;
   });
-  if (tab === 'tables') loadTables().catch((err) => {
-    elTables.empty.hidden = false;
-    elTables.empty.textContent = `Failed to load: ${err.message}`;
-  });
+  if (tab === 'tables') {
+    loadTables().catch((err) => {
+      elTables.empty.hidden = false;
+      elTables.empty.textContent = `Failed to load: ${err.message}`;
+    });
+    loadPresets().catch(() => { /* the preset list just stays empty on failure */ });
+  }
 }
 
 /* ==================================================================== */
@@ -1030,6 +1033,8 @@ loadCategories().catch((err) => {
 const tablesState = {
   tables: [],
   selectedTable: null,
+  presets: [],
+  pendingPreset: null, // the parsed preset object currently shown in the preview, or null
 };
 
 const elTables = {
@@ -1037,6 +1042,14 @@ const elTables = {
   bulletHeading: document.getElementById('table-bullet-heading'),
   bulletList: document.getElementById('table-bullet-list'),
   empty: document.getElementById('tables-empty'),
+  presetList: document.getElementById('preset-list'),
+  saveBtn: document.getElementById('preset-save-btn'),
+  importInput: document.getElementById('preset-import-input'),
+  preview: document.getElementById('preset-preview'),
+  previewSummary: document.getElementById('preset-preview-summary'),
+  previewList: document.getElementById('preset-preview-list'),
+  applyBtn: document.getElementById('preset-apply-btn'),
+  cancelBtn: document.getElementById('preset-cancel-btn'),
 };
 
 async function loadTables() {
@@ -1114,3 +1127,142 @@ async function toggleBullet(tableName, bullet, checkboxEl) {
     checkboxEl.disabled = false;
   }
 }
+
+/* ==================================================================== */
+/* Presets                                                               */
+/* ==================================================================== */
+
+async function loadPresets() {
+  const { presets } = await api('/api/presets');
+  tablesState.presets = presets;
+  renderPresetList();
+}
+
+function renderPresetList() {
+  elTables.presetList.innerHTML = '';
+  if (!tablesState.presets.length) {
+    elTables.presetList.textContent = 'No saved presets yet.';
+    return;
+  }
+  for (const preset of tablesState.presets) {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+
+    const name = document.createElement('span');
+    name.className = 'preset-name';
+    name.textContent = `${preset.name} (${preset.count})`;
+    row.appendChild(name);
+
+    const date = document.createElement('span');
+    date.className = 'preset-date';
+    date.textContent = new Date(preset.created).toLocaleDateString();
+    row.appendChild(date);
+
+    const download = document.createElement('a');
+    download.href = `/api/presets/export?slug=${encodeURIComponent(preset.slug)}`;
+    download.textContent = 'Download';
+    download.download = `${preset.slug}.json`;
+    row.appendChild(download);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => deletePresetRow(preset.slug));
+    row.appendChild(del);
+
+    elTables.presetList.appendChild(row);
+  }
+}
+
+async function deletePresetRow(slug) {
+  if (!confirm('Delete this preset? This cannot be undone.')) return;
+  await api('/api/presets/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug }),
+  });
+  await loadPresets();
+}
+
+elTables.saveBtn.addEventListener('click', async () => {
+  const name = prompt('Name this preset:');
+  if (!name || !name.trim()) return;
+  try {
+    await api('/api/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await loadPresets();
+  } catch (err) {
+    alert(`Couldn't save preset: ${err.message}`);
+  }
+});
+
+elTables.importInput.addEventListener('change', async () => {
+  const file = elTables.importInput.files[0];
+  elTables.importInput.value = '';
+  if (!file) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (err) {
+    alert(`That file isn't valid JSON: ${err.message}`);
+    return;
+  }
+  let diff;
+  try {
+    diff = await api('/api/presets/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed),
+    });
+  } catch (err) {
+    alert(`Couldn't preview that preset: ${err.message}`);
+    return;
+  }
+  tablesState.pendingPreset = parsed;
+  renderPresetPreview(diff);
+});
+
+function renderPresetPreview(diff) {
+  elTables.preview.hidden = false;
+  elTables.previewSummary.textContent =
+    `Will disable ${diff.willDisable.length}, already disabled ${diff.alreadyDisabled.length}, `
+    + `not found locally ${diff.notFound.length}.`;
+  elTables.previewList.innerHTML = '';
+  for (const { table, text } of diff.willDisable) {
+    const li = document.createElement('li');
+    li.textContent = `${table}: ${text}`;
+    elTables.previewList.appendChild(li);
+  }
+  for (const { table, text } of diff.notFound) {
+    const li = document.createElement('li');
+    li.className = 'preset-preview-not-found';
+    li.textContent = `${table}: ${text} (not found locally)`;
+    elTables.previewList.appendChild(li);
+  }
+}
+
+elTables.applyBtn.addEventListener('click', async () => {
+  if (!tablesState.pendingPreset) return;
+  try {
+    await api('/api/presets/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tablesState.pendingPreset),
+    });
+  } catch (err) {
+    alert(`Couldn't apply preset: ${err.message}`);
+    return;
+  }
+  tablesState.pendingPreset = null;
+  elTables.preview.hidden = true;
+  await loadTables();
+});
+
+elTables.cancelBtn.addEventListener('click', () => {
+  tablesState.pendingPreset = null;
+  elTables.preview.hidden = true;
+});

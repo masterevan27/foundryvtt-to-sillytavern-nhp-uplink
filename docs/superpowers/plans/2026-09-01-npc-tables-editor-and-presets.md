@@ -58,7 +58,7 @@ node --test import-gui-server/test/
 **Interfaces:**
 - Produces: `startTestServer({ tablesText: string, port: number }) -> Promise<{ baseUrl: string, dir: string, tablesPath: string, presetsDir: string, stop: () => Promise<void> }>`. Every later integration test task calls this. **`port` is required** (not defaulted) — `node --test` runs different test *files* concurrently by default, so each test file must pick its own port to avoid binding collisions; tests within one file run sequentially against that one port.
 
-- [ ] **Step 1: Write the test-server helper**
+- [x] **Step 1: Write the test-server helper**
 
 Create `import-gui-server/test/helpers/testServer.js`:
 
@@ -146,7 +146,7 @@ async function startTestServer({ tablesText, port }) {
 module.exports = { startTestServer };
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `import-gui-server/test/helpers.testServer.test.js`:
 
@@ -174,13 +174,13 @@ test('stop() tears the process down and removes the fixture directory', async ()
 });
 ```
 
-- [ ] **Step 3: Run it and confirm it fails**
+- [x] **Step 3: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/helpers.testServer.test.js`
 
 Expected: FAIL — both tests time out with `test server on port 5197 did not become ready within 5s`. `config.json` doesn't exist in this worktree (it's gitignored) and `server.js` doesn't yet honor `IMPORT_GUI_CONFIG`, so the spawned child hits `loadConfig()`'s missing-`npcManifestPath`/`foundryDataRoot` check and calls `process.exit(1)` immediately.
 
-- [ ] **Step 4: Make `loadConfig()` honor `IMPORT_GUI_CONFIG`**
+- [x] **Step 4: Make `loadConfig()` honor `IMPORT_GUI_CONFIG`**
 
 In `import-gui-server/server.js`, find:
 
@@ -198,13 +198,13 @@ function loadConfig() {
     const file = process.env.IMPORT_GUI_CONFIG || path.join(__dirname, 'config.json');
 ```
 
-- [ ] **Step 5: Run it again and confirm it passes**
+- [x] **Step 5: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/helpers.testServer.test.js`
 
 Expected: PASS (2 tests, 0 failures).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/server.js import-gui-server/test/helpers/testServer.js import-gui-server/test/helpers.testServer.test.js
@@ -227,7 +227,7 @@ git commit -m "test: add IMPORT_GUI_CONFIG override and a spawn/teardown test-se
 
   Both consumed by Task 3's `fs` wrappers and directly by these tests.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/tableBullets.test.js`:
 
@@ -319,13 +319,13 @@ test('toggleBulletInText toggles the first line, in file order, when text is dup
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/tableBullets.test.js`
 
 Expected: FAIL — `Cannot find module '../lib/tableBullets'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `import-gui-server/lib/tableBullets.js`:
 
@@ -425,13 +425,13 @@ module.exports = { parseTableFile, toggleBulletInText, readTables, toggleBulletO
 
 (`readTables`/`toggleBulletOnDisk` are implemented here now since they're one screenful and share this file, but Task 3 is where they get their own tests — this step just needs the module to exist and export everything Task 3 and the route tasks require.)
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/tableBullets.test.js`
 
 Expected: PASS (8 tests, 0 failures).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add import-gui-server/lib/tableBullets.js import-gui-server/test/tableBullets.test.js
@@ -450,7 +450,7 @@ git commit -m "feat: add pure table-bullet parsing and toggling logic"
 - Consumes: `readTables`, `toggleBulletOnDisk` from Task 2.
 - Produces: nothing new — this task is purely to give the disk-touching half of Task 2's module its own test coverage before Task 6 relies on it over HTTP.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/tableBullets.fs.test.js`:
 
@@ -500,13 +500,13 @@ test('toggleBulletOnDisk leaves the file byte-for-byte untouched when the bullet
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails, then confirm it passes**
+- [x] **Step 2: Run it and confirm it fails, then confirm it passes**
 
 Run: `node --test import-gui-server/test/tableBullets.fs.test.js`
 
 Expected: PASS immediately — `readTables`/`toggleBulletOnDisk` already exist from Task 2. This step exists to lock their disk-facing behavior under its own test file rather than to drive new implementation; if it doesn't pass, Task 2's Step 3 has a bug — fix it there, not here.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add import-gui-server/test/tableBullets.fs.test.js
@@ -530,7 +530,7 @@ git commit -m "test: cover lib/tableBullets.js's disk read/write wrappers direct
 
   Consumed by Task 5 (fs wrappers write the `disabled` shape `snapshotDisabled` produces) and Task 7's routes.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/presets.test.js`:
 
@@ -577,13 +577,13 @@ test('diffPresetAgainstTables reports every bullet not found when the whole tabl
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/presets.test.js`
 
 Expected: FAIL — `Cannot find module '../lib/presets'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `import-gui-server/lib/presets.js`:
 
@@ -683,13 +683,13 @@ module.exports = {
 
 (Same note as Task 2: the `fs`-touching functions are implemented here now so the module is complete, but Task 5 gives them their own dedicated tests.)
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/presets.test.js`
 
 Expected: PASS (4 tests, 0 failures).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add import-gui-server/lib/presets.js import-gui-server/test/presets.test.js
@@ -708,7 +708,7 @@ git commit -m "feat: add pure preset slug/snapshot/diff logic"
 - Consumes: `listPresets`, `presetExists`, `readPreset`, `writePreset`, `deletePreset` from Task 4.
 - Produces: nothing new — dedicated coverage for the disk-touching half of Task 4's module before Task 7 relies on it over HTTP.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/presets.fs.test.js`:
 
@@ -780,13 +780,13 @@ test('readPreset returns null for an unknown slug', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it passes**
+- [x] **Step 2: Run it and confirm it passes**
 
 Run: `node --test import-gui-server/test/presets.fs.test.js`
 
 Expected: PASS (6 tests, 0 failures) immediately, same reasoning as Task 3's Step 2 — if it fails, the bug is in Task 4's Step 3 implementation.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add import-gui-server/test/presets.fs.test.js
@@ -809,7 +809,7 @@ git commit -m "test: cover lib/presets.js's disk read/write wrappers directly"
 
   Consumed by the client in Task 8.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/api.tableBullets.test.js`:
 
@@ -885,13 +885,13 @@ test('POST /api/table-bullets/toggle returns 400 when the body is missing requir
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/api.tableBullets.test.js`
 
 Expected: FAIL — the first two tests get 404s (no such route yet); the third and fourth also fail their `assert.equal(..., 400)` since a 404 isn't a 400.
 
-- [ ] **Step 3: Add the routes**
+- [x] **Step 3: Add the routes**
 
 In `import-gui-server/server.js`, add the require near the top, right after the existing requires:
 
@@ -943,19 +943,19 @@ Add the two new routes directly after it (before `/api/create-npc`):
 
 (`NPC_TABLES_PATH` already exists in `server.js` — it's what `insertBulletIntoTables` uses.)
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/api.tableBullets.test.js`
 
 Expected: PASS (4 tests, 0 failures).
 
-- [ ] **Step 5: Run the full suite to confirm nothing else broke**
+- [x] **Step 5: Run the full suite to confirm nothing else broke**
 
 Run: `node --test import-gui-server/test/`
 
 Expected: PASS, all tests across all files so far.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/server.js import-gui-server/test/api.tableBullets.test.js
@@ -983,7 +983,7 @@ git commit -m "feat: add GET /api/table-bullets and POST /api/table-bullets/togg
 
   Consumed by the client in Task 9.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `import-gui-server/test/api.presets.test.js`:
 
@@ -1145,13 +1145,13 @@ test('POST /api/presets/delete returns 404 for an unknown slug', async (t) => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/api.presets.test.js`
 
 Expected: FAIL — every route 404s.
 
-- [ ] **Step 3: Add the `presets` require, `PRESETS_DIR` constant, and routes**
+- [x] **Step 3: Add the `presets` require, `PRESETS_DIR` constant, and routes**
 
 In `import-gui-server/server.js`, add the require next to `tableBullets`:
 
@@ -1279,7 +1279,7 @@ Find the `/api/table-bullets/toggle` route added in Task 6 and add the presets r
     }
 ```
 
-- [ ] **Step 4: Update `config.example.json`**
+- [x] **Step 4: Update `config.example.json`**
 
 In `import-gui-server/config.example.json`, add `presetsDir` after `stagedImportsDir`:
 
@@ -1299,19 +1299,19 @@ In `import-gui-server/config.example.json`, add `presetsDir` after `stagedImport
 }
 ```
 
-- [ ] **Step 5: Run it again and confirm it passes**
+- [x] **Step 5: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/api.presets.test.js`
 
 Expected: PASS (8 tests, 0 failures).
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `node --test import-gui-server/test/`
 
 Expected: PASS, everything green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add import-gui-server/server.js import-gui-server/config.example.json import-gui-server/test/api.presets.test.js
@@ -1331,7 +1331,7 @@ git commit -m "feat: add preset save/list/delete/export/import/apply routes"
 - Consumes: `GET /api/table-bullets`, `POST /api/table-bullets/toggle` (Task 6); the existing `api()` helper and `switchTab()` in `app.js`.
 - Produces: `tablesState` object and `elTables` object in `app.js` — Task 9 adds more keys to both, so their exact names matter: `tablesState.tables`, `tablesState.selectedTable`; `elTables.headingList`, `elTables.bulletHeading`, `elTables.bulletList`, `elTables.empty`.
 
-- [ ] **Step 1: Add the tab button and panel to `index.html`**
+- [x] **Step 1: Add the tab button and panel to `index.html`**
 
 Find:
 
@@ -1379,7 +1379,7 @@ Replace with:
 </main>
 ```
 
-- [ ] **Step 2: Add the Tables tab logic to `app.js`**
+- [x] **Step 2: Add the Tables tab logic to `app.js`**
 
 At the end of `import-gui-server/public/app.js`, append:
 
@@ -1501,7 +1501,7 @@ Replace with:
 }
 ```
 
-- [ ] **Step 3: Add styling to `style.css`**
+- [x] **Step 3: Add styling to `style.css`**
 
 Append to `import-gui-server/public/style.css`:
 
@@ -1549,7 +1549,7 @@ Append to `import-gui-server/public/style.css`:
 .table-bullet-text { flex: 1; }
 ```
 
-- [ ] **Step 4: Verify manually against a fixture server**
+- [x] **Step 4: Verify manually against a fixture server**
 
 There's no browser test tooling in this repo yet, so verify this by hand against a real server pointed at a throwaway fixture — never the real `config.json`/`npc-generator-tables.md`.
 
@@ -1593,7 +1593,7 @@ Stop the server (Ctrl+C) and remove `$env:IMPORT_GUI_CONFIG` when done:
 Remove-Item Env:\IMPORT_GUI_CONFIG
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add import-gui-server/public/index.html import-gui-server/public/app.js import-gui-server/public/style.css
@@ -1613,7 +1613,7 @@ git commit -m "feat: add a Tables tab for viewing and toggling generator-table b
 - Consumes: `GET/POST /api/presets`, `POST /api/presets/delete`, `GET /api/presets/export`, `POST /api/presets/import`, `POST /api/presets/apply` (Task 7); `tablesState`, `elTables`, `loadTables()` (Task 8).
 - Produces: `tablesState.presets`, `tablesState.pendingPreset`; additional `elTables` keys `presetList`, `saveBtn`, `importInput`, `preview`, `previewSummary`, `previewList`, `applyBtn`, `cancelBtn`.
 
-- [ ] **Step 1: Add the presets panel markup to `index.html`**
+- [x] **Step 1: Add the presets panel markup to `index.html`**
 
 Find the `tab-tables` section added in Task 8:
 
@@ -1666,7 +1666,7 @@ Replace with:
 </section>
 ```
 
-- [ ] **Step 2: Add the presets element refs and wire the tab switch**
+- [x] **Step 2: Add the presets element refs and wire the tab switch**
 
 Find the `elTables` object from Task 8:
 
@@ -1741,7 +1741,7 @@ Replace with:
 }
 ```
 
-- [ ] **Step 3: Add the presets logic to the end of `app.js`**
+- [x] **Step 3: Add the presets logic to the end of `app.js`**
 
 ```js
 /* ==================================================================== */
@@ -1884,7 +1884,7 @@ elTables.cancelBtn.addEventListener('click', () => {
 });
 ```
 
-- [ ] **Step 4: Add presets styling to `style.css`**
+- [x] **Step 4: Add presets styling to `style.css`**
 
 Append:
 
@@ -1917,7 +1917,7 @@ Append:
 .preset-preview-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; }
 ```
 
-- [ ] **Step 5: Verify manually against a fixture server**
+- [x] **Step 5: Verify manually against a fixture server**
 
 Reuse the fixture setup from Task 8 Step 4 (or start a fresh one the same way). With the server running and the browser open on the Tables tab:
 
@@ -1930,7 +1930,7 @@ Reuse the fixture setup from Task 8 Step 4 (or start a fresh one the same way). 
 
 Stop the server and clean up the env var as in Task 8.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/public/index.html import-gui-server/public/app.js import-gui-server/public/style.css
@@ -1950,7 +1950,7 @@ git commit -m "feat: add save/export/import/apply presets panel"
 - Consumes: `traitState`, `elTraits`, `renderTraits()`, `refreshTraitCandidates()` (all pre-existing in `app.js`). `c.generatedAt`/`c.importedAt` are already present on every candidate object returned by the existing `GET /api/trait-candidates` (`allTraitCandidates()` in `server.js` already computes both — confirmed by reading it; no server change needed).
 - Produces: `traitState.sort`.
 
-- [ ] **Step 1: Add the sort control to `index.html`**
+- [x] **Step 1: Add the sort control to `index.html`**
 
 Find:
 
@@ -1984,7 +1984,7 @@ Replace with:
 
 (`.sort-by` already exists in `style.css`, used by the Import tab's own sort control — no new CSS needed for the control itself.)
 
-- [ ] **Step 2: Add sorting and date badges to `app.js`**
+- [x] **Step 2: Add sorting and date badges to `app.js`**
 
 Find the `traitState` object:
 
@@ -2126,7 +2126,7 @@ elTraits.sortSelect.addEventListener('change', () => {
 });
 ```
 
-- [ ] **Step 3: Add the date-badge style to `style.css`**
+- [x] **Step 3: Add the date-badge style to `style.css`**
 
 Append:
 
@@ -2134,7 +2134,7 @@ Append:
 .trait-row .date-badge { background: #262a33; color: #7c8ba1; }
 ```
 
-- [ ] **Step 4: Verify manually against a fixture server**
+- [x] **Step 4: Verify manually against a fixture server**
 
 This tab reads staged trait-import candidates, which live under `<tables dir>/staged-imports/*.json` (see `STAGED_IMPORTS_DIR` in `server.js`). Using the same fixture pattern as Tasks 8/9:
 
@@ -2157,7 +2157,7 @@ Restart `node server.js` (same `$env:IMPORT_GUI_CONFIG`), reload the page, click
 2. Each row shows a date badge for when it was generated, and the imported row additionally shows a second badge like "on 8/25/2026".
 3. Switching "Sort by" to "Table" re-orders the rows alphabetically by table name.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add import-gui-server/public/index.html import-gui-server/public/app.js import-gui-server/public/style.css
@@ -2173,7 +2173,7 @@ git commit -m "feat: add sort control and date badges to the Trait Imports tab"
 
 **Interfaces:** none — documentation only.
 
-- [ ] **Step 1: Add a paragraph to the Import GUI section**
+- [x] **Step 1: Add a paragraph to the Import GUI section**
 
 Find, in `README.md`'s "### 8. Import GUI (optional)" section:
 
@@ -2198,7 +2198,7 @@ and hand the file to someone else; they can import it into their own copy
 of this GUI, preview exactly what it would change, and apply it.
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add README.md

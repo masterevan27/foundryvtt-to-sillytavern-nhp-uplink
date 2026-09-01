@@ -866,7 +866,7 @@ const traitState = {
   selected: new Set(),
   search: '',
   tableFilter: '',
-  sort: 'when-desc',
+  sort: 'table',
 };
 
 const elTraits = {

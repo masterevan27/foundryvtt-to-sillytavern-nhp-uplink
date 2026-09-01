@@ -655,6 +655,13 @@ function switchTab(tab) {
   if (tab === 'traits') refreshTraitCandidates().catch((err) => {
     elTraits.status.textContent = `Failed to load: ${err.message}`;
   });
+  if (tab === 'tables') {
+    loadTables().catch((err) => {
+      elTables.empty.hidden = false;
+      elTables.empty.textContent = `Failed to load: ${err.message}`;
+    });
+    loadPresets().catch(() => { /* the preset list just stays empty on failure */ });
+  }
 }
 
 /* ==================================================================== */
@@ -859,6 +866,7 @@ const traitState = {
   selected: new Set(),
   search: '',
   tableFilter: '',
+  sort: 'when-desc',
 };
 
 const elTraits = {
@@ -869,6 +877,7 @@ const elTraits = {
   selectAll: document.getElementById('trait-select-all'),
   search: document.getElementById('trait-search'),
   tableFilter: document.getElementById('trait-table-filter'),
+  sortSelect: document.getElementById('trait-sort-select'),
   overlay: document.getElementById('trait-detail-overlay'),
   detailClose: document.getElementById('trait-detail-close'),
   detailTable: document.getElementById('trait-detail-table'),
@@ -908,9 +917,17 @@ function traitMatchesFilters(c) {
   return [c.bullet, c.sourceImage, c.notes, c.table].filter(Boolean).join('\n').toLowerCase().includes(search);
 }
 
+function compareTraitCandidates(a, b) {
+  if (traitState.sort === 'when-asc') return (a.generatedAt || '').localeCompare(b.generatedAt || '');
+  if (traitState.sort === 'table') {
+    return a.table.localeCompare(b.table) || (b.generatedAt || '').localeCompare(a.generatedAt || '');
+  }
+  return (b.generatedAt || '').localeCompare(a.generatedAt || ''); // when-desc, the default
+}
+
 function renderTraits() {
   elTraits.list.innerHTML = '';
-  traitState.visible = traitState.candidates.filter(traitMatchesFilters);
+  traitState.visible = traitState.candidates.filter(traitMatchesFilters).sort(compareTraitCandidates);
   elTraits.empty.hidden = traitState.visible.length > 0;
   elTraits.empty.textContent = traitState.candidates.length
     ? 'No candidates match the current filters.'
@@ -943,11 +960,24 @@ function renderTraits() {
     bullet.textContent = c.bullet.length > 160 ? `${c.bullet.slice(0, 160)}…` : c.bullet;
     row.appendChild(bullet);
 
+    if (c.generatedAt) {
+      const generatedBadge = document.createElement('span');
+      generatedBadge.className = 'badge date-badge';
+      generatedBadge.textContent = new Date(c.generatedAt).toLocaleDateString();
+      row.appendChild(generatedBadge);
+    }
+
     if (c.imported) {
       const importedBadge = document.createElement('span');
       importedBadge.className = 'badge';
       importedBadge.textContent = 'Imported';
       row.appendChild(importedBadge);
+      if (c.importedAt) {
+        const importedDateBadge = document.createElement('span');
+        importedDateBadge.className = 'badge date-badge';
+        importedDateBadge.textContent = `on ${new Date(c.importedAt).toLocaleDateString()}`;
+        row.appendChild(importedDateBadge);
+      }
     }
 
     row.addEventListener('click', () => openTraitDetail(c));
@@ -988,6 +1018,10 @@ elTraits.tableFilter.addEventListener('change', () => {
   traitState.tableFilter = elTraits.tableFilter.value;
   renderTraits();
 });
+elTraits.sortSelect.addEventListener('change', () => {
+  traitState.sort = elTraits.sortSelect.value;
+  renderTraits();
+});
 elTraits.selectAll.addEventListener('change', () => {
   const notImported = traitState.visible.filter((c) => !c.imported);
   if (elTraits.selectAll.checked) notImported.forEach((c) => traitState.selected.add(candidateKey(c)));
@@ -1017,4 +1051,245 @@ elTraits.importBtn.addEventListener('click', async () => {
 
 loadCategories().catch((err) => {
   el.status.textContent = `Failed to load: ${err.message}`;
+});
+
+/* ==================================================================== */
+/* Tables (per-bullet enable/disable)                                   */
+/* ==================================================================== */
+
+const tablesState = {
+  tables: [],
+  selectedTable: null,
+  presets: [],
+  pendingPreset: null, // the parsed preset object currently shown in the preview, or null
+};
+
+const elTables = {
+  headingList: document.getElementById('table-heading-list'),
+  bulletHeading: document.getElementById('table-bullet-heading'),
+  bulletList: document.getElementById('table-bullet-list'),
+  empty: document.getElementById('tables-empty'),
+  presetList: document.getElementById('preset-list'),
+  saveBtn: document.getElementById('preset-save-btn'),
+  importInput: document.getElementById('preset-import-input'),
+  preview: document.getElementById('preset-preview'),
+  previewSummary: document.getElementById('preset-preview-summary'),
+  previewList: document.getElementById('preset-preview-list'),
+  applyBtn: document.getElementById('preset-apply-btn'),
+  cancelBtn: document.getElementById('preset-cancel-btn'),
+};
+
+async function loadTables() {
+  const { tables } = await api('/api/table-bullets');
+  tablesState.tables = tables;
+  elTables.empty.hidden = tables.length > 0;
+  if (!tablesState.selectedTable || !tables.some((t) => t.name === tablesState.selectedTable)) {
+    tablesState.selectedTable = tables[0]?.name ?? null;
+  }
+  renderTableHeadingList();
+  renderTableBullets();
+}
+
+function renderTableHeadingList() {
+  elTables.headingList.innerHTML = '';
+  for (const table of tablesState.tables) {
+    const disabledCount = table.bullets.filter((b) => !b.enabled).length;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'table-heading-row' + (table.name === tablesState.selectedTable ? ' active' : '');
+    row.textContent = disabledCount
+      ? `${table.name} (${table.bullets.length}, ${disabledCount} disabled)`
+      : `${table.name} (${table.bullets.length})`;
+    row.addEventListener('click', () => {
+      tablesState.selectedTable = table.name;
+      renderTableHeadingList();
+      renderTableBullets();
+    });
+    elTables.headingList.appendChild(row);
+  }
+}
+
+function renderTableBullets() {
+  const table = tablesState.tables.find((t) => t.name === tablesState.selectedTable);
+  elTables.bulletHeading.textContent = table ? table.name : 'Select a table';
+  elTables.bulletList.innerHTML = '';
+  if (!table) return;
+  for (const bullet of table.bullets) {
+    const row = document.createElement('label');
+    row.className = 'table-bullet-row';
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = bullet.enabled;
+    check.addEventListener('change', () => toggleBullet(table.name, bullet, check));
+    row.appendChild(check);
+    if (bullet.weight > 1) {
+      const badge = document.createElement('span');
+      badge.className = 'badge weight-badge';
+      badge.textContent = `x${bullet.weight}`;
+      row.appendChild(badge);
+    }
+    const text = document.createElement('span');
+    text.className = 'table-bullet-text';
+    text.textContent = bullet.text;
+    row.appendChild(text);
+    elTables.bulletList.appendChild(row);
+  }
+}
+
+async function toggleBullet(tableName, bullet, checkboxEl) {
+  const nextEnabled = checkboxEl.checked;
+  checkboxEl.disabled = true;
+  try {
+    await api('/api/table-bullets/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: tableName, text: bullet.text, enabled: nextEnabled }),
+    });
+    bullet.enabled = nextEnabled;
+    renderTableHeadingList(); // the disabled-count badge changed
+  } catch (err) {
+    checkboxEl.checked = !nextEnabled; // revert - the write failed
+    alert(`Couldn't update that bullet: ${err.message}`);
+  } finally {
+    checkboxEl.disabled = false;
+  }
+}
+
+/* ==================================================================== */
+/* Presets                                                               */
+/* ==================================================================== */
+
+async function loadPresets() {
+  const { presets } = await api('/api/presets');
+  tablesState.presets = presets;
+  renderPresetList();
+}
+
+function renderPresetList() {
+  elTables.presetList.innerHTML = '';
+  if (!tablesState.presets.length) {
+    elTables.presetList.textContent = 'No saved presets yet.';
+    return;
+  }
+  for (const preset of tablesState.presets) {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+
+    const name = document.createElement('span');
+    name.className = 'preset-name';
+    name.textContent = `${preset.name} (${preset.count})`;
+    row.appendChild(name);
+
+    const date = document.createElement('span');
+    date.className = 'preset-date';
+    date.textContent = new Date(preset.created).toLocaleDateString();
+    row.appendChild(date);
+
+    const download = document.createElement('a');
+    download.href = `/api/presets/export?slug=${encodeURIComponent(preset.slug)}`;
+    download.textContent = 'Download';
+    download.download = `${preset.slug}.json`;
+    row.appendChild(download);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => deletePresetRow(preset.slug));
+    row.appendChild(del);
+
+    elTables.presetList.appendChild(row);
+  }
+}
+
+async function deletePresetRow(slug) {
+  if (!confirm('Delete this preset? This cannot be undone.')) return;
+  await api('/api/presets/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug }),
+  });
+  await loadPresets();
+}
+
+elTables.saveBtn.addEventListener('click', async () => {
+  const name = prompt('Name this preset:');
+  if (!name || !name.trim()) return;
+  try {
+    await api('/api/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await loadPresets();
+  } catch (err) {
+    alert(`Couldn't save preset: ${err.message}`);
+  }
+});
+
+elTables.importInput.addEventListener('change', async () => {
+  const file = elTables.importInput.files[0];
+  elTables.importInput.value = '';
+  if (!file) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (err) {
+    alert(`That file isn't valid JSON: ${err.message}`);
+    return;
+  }
+  let diff;
+  try {
+    diff = await api('/api/presets/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed),
+    });
+  } catch (err) {
+    alert(`Couldn't preview that preset: ${err.message}`);
+    return;
+  }
+  tablesState.pendingPreset = parsed;
+  renderPresetPreview(diff);
+});
+
+function renderPresetPreview(diff) {
+  elTables.preview.hidden = false;
+  elTables.previewSummary.textContent =
+    `Will disable ${diff.willDisable.length}, already disabled ${diff.alreadyDisabled.length}, `
+    + `not found locally ${diff.notFound.length}.`;
+  elTables.previewList.innerHTML = '';
+  for (const { table, text } of diff.willDisable) {
+    const li = document.createElement('li');
+    li.textContent = `${table}: ${text}`;
+    elTables.previewList.appendChild(li);
+  }
+  for (const { table, text } of diff.notFound) {
+    const li = document.createElement('li');
+    li.className = 'preset-preview-not-found';
+    li.textContent = `${table}: ${text} (not found locally)`;
+    elTables.previewList.appendChild(li);
+  }
+}
+
+elTables.applyBtn.addEventListener('click', async () => {
+  if (!tablesState.pendingPreset) return;
+  try {
+    await api('/api/presets/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tablesState.pendingPreset),
+    });
+  } catch (err) {
+    alert(`Couldn't apply preset: ${err.message}`);
+    return;
+  }
+  tablesState.pendingPreset = null;
+  elTables.preview.hidden = true;
+  await loadTables();
+});
+
+elTables.cancelBtn.addEventListener('click', () => {
+  tablesState.pendingPreset = null;
+  elTables.preview.hidden = true;
 });

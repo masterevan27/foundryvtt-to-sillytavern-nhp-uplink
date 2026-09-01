@@ -49,6 +49,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const tableBullets = require('./lib/tableBullets');
+const presets = require('./lib/presets');
 
 const PLUGIN_ID = 'import-gui-server';
 
@@ -73,10 +75,13 @@ const DEFAULT_CONFIG = {
     // generate-npc.py; override either for a nonstandard layout.
     npcTablesPath: '',
     stagedImportsDir: '',
+    presetsDir: '',
 };
 
 function loadConfig() {
-    const file = path.join(__dirname, 'config.json');
+    // Overridable so tests can point a real server.js process at a synthetic
+    // fixture config without ever touching the real config.json.
+    const file = process.env.IMPORT_GUI_CONFIG || path.join(__dirname, 'config.json');
     let fromFile = {};
     try {
         if (fs.existsSync(file)) fromFile = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -118,6 +123,11 @@ const NPC_TABLES_PATH = config.npcTablesPath
 // sibling of npc-generator-tables.md.
 const STAGED_IMPORTS_DIR = config.stagedImportsDir
     || path.join(path.dirname(NPC_TABLES_PATH), 'staged-imports');
+
+// presets/ - saved snapshots of disabled table bullets - defaults to a
+// sibling of staged-imports/, both alongside npc-generator-tables.md.
+const PRESETS_DIR = config.presetsDir
+    || path.join(path.dirname(NPC_TABLES_PATH), 'presets');
 
 /* ------------------------------------------------------------------ */
 /* Manifest access                                                     */
@@ -832,6 +842,114 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/npc-tables' && req.method === 'GET') {
         return sendJson(res, 200, { tables: OVERRIDE_TABLES });
+    }
+
+    if (url.pathname === '/api/table-bullets' && req.method === 'GET') {
+        return sendJson(res, 200, { tables: tableBullets.readTables(NPC_TABLES_PATH) });
+    }
+
+    if (url.pathname === '/api/table-bullets/toggle' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const { table, text, enabled } = body;
+        if (typeof table !== 'string' || !table || typeof text !== 'string' || typeof enabled !== 'boolean') {
+            return sendJson(res, 400, { error: 'table (string), text (string), and enabled (boolean) are required' });
+        }
+        const result = tableBullets.toggleBulletOnDisk(NPC_TABLES_PATH, table, text, enabled);
+        if (!result.ok) return sendJson(res, 400, { error: result.error });
+        return sendJson(res, 200, { ok: true });
+    }
+
+    if (url.pathname === '/api/presets' && req.method === 'GET') {
+        return sendJson(res, 200, { presets: presets.listPresets(PRESETS_DIR) });
+    }
+
+    if (url.pathname === '/api/presets' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const name = typeof body.name === 'string' ? body.name.trim() : '';
+        if (!name) return sendJson(res, 400, { error: 'name is required' });
+        const slug = presets.slugify(name);
+        if (!slug) return sendJson(res, 400, { error: 'name must contain at least one letter or digit' });
+        if (presets.presetExists(PRESETS_DIR, slug)) {
+            return sendJson(res, 409, { error: `a preset named "${name}" already exists` });
+        }
+        const parsed = tableBullets.readTables(NPC_TABLES_PATH);
+        const preset = { name, created: new Date().toISOString(), disabled: presets.snapshotDisabled(parsed) };
+        presets.writePreset(PRESETS_DIR, slug, preset);
+        return sendJson(res, 200, { ok: true, slug });
+    }
+
+    if (url.pathname === '/api/presets/delete' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const slug = typeof body.slug === 'string' ? body.slug : '';
+        const ok = slug && presets.deletePreset(PRESETS_DIR, slug);
+        return ok ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { error: 'unknown preset' });
+    }
+
+    if (url.pathname === '/api/presets/export' && req.method === 'GET') {
+        const slug = url.searchParams.get('slug') || '';
+        const preset = slug && presets.readPreset(PRESETS_DIR, slug);
+        if (!preset) return sendJson(res, 404, { error: 'unknown preset' });
+        const payload = JSON.stringify(preset, null, 2);
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Disposition': `attachment; filename="${slug}.json"`,
+            'Content-Length': Buffer.byteLength(payload),
+        });
+        return res.end(payload);
+    }
+
+    if (url.pathname === '/api/presets/import' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        if (!body || typeof body.disabled !== 'object' || body.disabled === null) {
+            return sendJson(res, 400, { error: 'not a valid preset file - missing "disabled"' });
+        }
+        const parsed = tableBullets.readTables(NPC_TABLES_PATH);
+        return sendJson(res, 200, presets.diffPresetAgainstTables(body.disabled, parsed));
+    }
+
+    if (url.pathname === '/api/presets/apply' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        if (!body || typeof body.disabled !== 'object' || body.disabled === null) {
+            return sendJson(res, 400, { error: 'not a valid preset file - missing "disabled"' });
+        }
+        // Re-diff against the live file rather than trusting a preview the
+        // client may have shown a while ago - the file could have changed.
+        const parsed = tableBullets.readTables(NPC_TABLES_PATH);
+        const diff = presets.diffPresetAgainstTables(body.disabled, parsed);
+        for (const { table, text } of diff.willDisable) {
+            tableBullets.toggleBulletOnDisk(NPC_TABLES_PATH, table, text, false);
+        }
+        return sendJson(res, 200, diff);
     }
 
     if (url.pathname === '/api/create-npc' && req.method === 'POST') {

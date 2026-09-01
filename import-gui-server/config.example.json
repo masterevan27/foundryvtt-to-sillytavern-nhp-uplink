@@ -8,5 +8,6 @@
   "generateNpcScript": "",
   "foundryNpcSubdir": "LancerNPCs",
   "npcTablesPath": "",
-  "stagedImportsDir": ""
+  "stagedImportsDir": "",
+  "presetsDir": ""
 }

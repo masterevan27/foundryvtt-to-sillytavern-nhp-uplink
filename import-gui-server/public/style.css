@@ -439,6 +439,7 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
   flex-shrink: 0;
 }
 .trait-row .badge { position: static; }
+.trait-row .date-badge { background: #262a33; color: #7c8ba1; }
 .trait-bullet { flex: 1; font-size: 0.85rem; color: #d7dae0; }
 
 .trait-detail-info h3 { font-size: 0.82rem; color: #9aa1ad; margin: 0.9rem 0 0.3rem; }
@@ -454,3 +455,72 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
   margin: 0;
 }
 .trait-detail-info p { margin: 0; font-size: 0.85rem; color: #d7dae0; }
+
+.tables-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.table-heading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 220px;
+}
+.table-heading-row {
+  text-align: left;
+  background: #1c1f26;
+  border: 1px solid #363b47;
+  color: #d7dae0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.table-heading-row.active { border-color: #7c8ba1; background: #262a33; color: #fff; }
+.table-bullet-panel { flex: 1; min-width: 0; }
+.table-bullet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #1c1f26;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  color: #d7dae0;
+}
+.table-bullet-row .weight-badge {
+  position: static;
+  background: #262a33;
+  color: #7c8ba1;
+  white-space: nowrap;
+}
+.table-bullet-text { flex: 1; }
+
+.presets-panel { margin-top: 1.5rem; border-top: 1px solid #363b47; padding-top: 1rem; }
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: #1c1f26;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+.preset-name { flex: 1; }
+.preset-date { color: #9aa1ad; font-size: 0.78rem; }
+.preset-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; align-items: center; }
+.preset-import-label {
+  background: #262a33;
+  border: 1px solid #363b47;
+  color: #e6e6e6;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.preset-preview { margin-top: 0.8rem; background: #1c1f26; border-radius: 6px; padding: 0.7rem; }
+.preset-preview-not-found { color: #e0a458; }
+.preset-preview-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; }

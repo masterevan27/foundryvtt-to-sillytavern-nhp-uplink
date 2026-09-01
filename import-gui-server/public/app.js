@@ -1122,12 +1122,17 @@ function renderTableBullets() {
     check.checked = bullet.enabled;
     check.addEventListener('change', () => toggleBullet(table.name, bullet, check));
     row.appendChild(check);
-    if (bullet.weight > 1) {
-      const badge = document.createElement('span');
-      badge.className = 'badge weight-badge';
-      badge.textContent = `x${bullet.weight}`;
-      row.appendChild(badge);
-    }
+
+    const weightInput = document.createElement('input');
+    weightInput.type = 'number';
+    weightInput.className = 'weight-input';
+    weightInput.min = '1';
+    weightInput.step = '1';
+    weightInput.value = String(bullet.weight);
+    weightInput.title = 'Weight (relative roll chance)';
+    weightInput.addEventListener('change', () => setBulletWeight(table.name, bullet, weightInput));
+    row.appendChild(weightInput);
+
     const text = document.createElement('span');
     text.className = 'table-bullet-text';
     text.textContent = bullet.text;
@@ -1152,6 +1157,30 @@ async function toggleBullet(tableName, bullet, checkboxEl) {
     alert(`Couldn't update that bullet: ${err.message}`);
   } finally {
     checkboxEl.disabled = false;
+  }
+}
+
+async function setBulletWeight(tableName, bullet, inputEl) {
+  const nextWeight = Math.trunc(Number(inputEl.value));
+  if (!Number.isInteger(nextWeight) || nextWeight < 1) {
+    inputEl.value = bullet.weight;
+    alert('Weight must be a whole number of 1 or more.');
+    return;
+  }
+  if (nextWeight === bullet.weight) return;
+  inputEl.disabled = true;
+  try {
+    await api('/api/table-bullets/set-weight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: tableName, text: bullet.text, weight: nextWeight }),
+    });
+    bullet.weight = nextWeight;
+  } catch (err) {
+    inputEl.value = bullet.weight;
+    alert(`Couldn't update that bullet's weight: ${err.message}`);
+  } finally {
+    inputEl.disabled = false;
   }
 }
 

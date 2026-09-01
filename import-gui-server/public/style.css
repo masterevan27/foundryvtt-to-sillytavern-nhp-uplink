@@ -490,12 +490,17 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
   font-size: 0.85rem;
   color: #d7dae0;
 }
-.table-bullet-row .weight-badge {
-  position: static;
+.table-bullet-row .weight-input {
+  width: 3rem;
   background: #262a33;
-  color: #7c8ba1;
-  white-space: nowrap;
+  border: 1px solid #363b47;
+  color: #e6e6e6;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-align: center;
 }
+.table-bullet-row .weight-input:disabled { opacity: 0.5; }
 .table-bullet-text { flex: 1; }
 
 .presets-panel { margin-top: 1.5rem; border-top: 1px solid #363b47; padding-top: 1rem; }

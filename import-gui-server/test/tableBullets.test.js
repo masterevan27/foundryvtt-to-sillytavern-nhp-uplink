@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTableFile, toggleBulletInText } = require('../lib/tableBullets');
+const { parseTableFile, toggleBulletInText, setBulletWeightInText } = require('../lib/tableBullets');
 
 const SAMPLE = [
     '# Random NPC Generator Tables',
@@ -82,4 +82,43 @@ test('toggleBulletInText toggles the first line, in file order, when text is dup
     const lines = result.text.split('\n');
     assert.equal(lines[1], '<!-- - Ghost -->');
     assert.equal(lines[2], '- Ghost');
+});
+
+test('setBulletWeightInText changes an enabled bullet from weight 1 to a multiplier prefix', () => {
+    const result = setBulletWeightInText(SAMPLE, 'Gear', 'nothing at all, hands loose and empty', 3);
+    assert.equal(result.ok, true);
+    assert.match(result.text, /^- x3 nothing at all, hands loose and empty$/m);
+    const reparsed = parseTableFile(result.text);
+    const bullet = reparsed.find((t) => t.name === 'Gear').bullets.find((b) => b.text === 'nothing at all, hands loose and empty');
+    assert.equal(bullet.weight, 3);
+});
+
+test('setBulletWeightInText changes a weighted bullet back down to weight 1, dropping the xN prefix', () => {
+    const result = setBulletWeightInText(SAMPLE, 'Outfit', 'nondescript grey work coveralls', 1);
+    assert.equal(result.ok, true);
+    assert.match(result.text, /^- nondescript grey work coveralls$/m);
+});
+
+test("setBulletWeightInText preserves a disabled bullet's comment wrapper while changing its weight", () => {
+    const result = setBulletWeightInText(SAMPLE, 'Outfit',
+        'a graffiti-tagged cropped t-shirt and cut-off shorts || civ', 2);
+    assert.equal(result.ok, true);
+    assert.match(result.text, /<!-- - x2 a graffiti-tagged cropped t-shirt and cut-off shorts \|\| civ -->/);
+    const reparsed = parseTableFile(result.text);
+    const bullet = reparsed.find((t) => t.name === 'Outfit')
+        .bullets.find((b) => b.text === 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ');
+    assert.equal(bullet.enabled, false);
+    assert.equal(bullet.weight, 2);
+});
+
+test('setBulletWeightInText is a no-op when the bullet is already at that weight', () => {
+    const result = setBulletWeightInText(SAMPLE, 'Outfit', 'nondescript grey work coveralls', 4);
+    assert.equal(result.ok, true);
+    assert.equal(result.text, SAMPLE);
+});
+
+test('setBulletWeightInText returns ok:false for a bullet that does not exist under that heading', () => {
+    const result = setBulletWeightInText(SAMPLE, 'Outfit', 'a suit of powered armor', 2);
+    assert.equal(result.ok, false);
+    assert.match(result.error, /no bullet matching/);
 });

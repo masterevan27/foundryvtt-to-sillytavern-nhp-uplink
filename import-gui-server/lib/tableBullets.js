@@ -76,6 +76,35 @@ function toggleBulletInText(fileText, tableName, bulletText, enabled) {
     return { ok: false, error: `no bullet matching that text under "## ${tableName}"` };
 }
 
+/** The inverse of splitWeight(): weight 1 has no prefix, matching every plain bullet already in the file. */
+function formatRaw(weight, text) {
+    return weight === 1 ? text : `x${weight} ${text}`;
+}
+
+function setBulletWeightInText(fileText, tableName, bulletText, weight) {
+    const lines = fileText.split('\n');
+    let inTarget = false;
+    for (let i = 0; i < lines.length; i++) {
+        const heading = lines[i].match(HEADING_RE);
+        if (heading) {
+            inTarget = heading[1] === tableName;
+            continue;
+        }
+        if (!inTarget) continue;
+        const bullet = matchBulletLine(lines[i]);
+        if (!bullet) continue;
+        const { weight: currentWeight, text } = splitWeight(bullet.raw);
+        if (text !== bulletText) continue;
+
+        if (currentWeight === weight) return { ok: true, text: fileText }; // already at that weight
+
+        const raw = formatRaw(weight, text);
+        lines[i] = bullet.enabled ? `- ${raw}` : `<!-- - ${raw} -->`;
+        return { ok: true, text: lines.join('\n') };
+    }
+    return { ok: false, error: `no bullet matching that text under "## ${tableName}"` };
+}
+
 function readTables(filePath) {
     return parseTableFile(fs.readFileSync(filePath, 'utf8'));
 }
@@ -88,4 +117,15 @@ function toggleBulletOnDisk(filePath, tableName, bulletText, enabled) {
     return { ok: true };
 }
 
-module.exports = { parseTableFile, toggleBulletInText, readTables, toggleBulletOnDisk };
+function setBulletWeightOnDisk(filePath, tableName, bulletText, weight) {
+    const fileText = fs.readFileSync(filePath, 'utf8');
+    const result = setBulletWeightInText(fileText, tableName, bulletText, weight);
+    if (!result.ok) return result;
+    fs.writeFileSync(filePath, result.text);
+    return { ok: true };
+}
+
+module.exports = {
+    parseTableFile, toggleBulletInText, readTables, toggleBulletOnDisk,
+    setBulletWeightInText, setBulletWeightOnDisk,
+};

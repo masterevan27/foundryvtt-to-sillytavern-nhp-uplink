@@ -655,6 +655,10 @@ function switchTab(tab) {
   if (tab === 'traits') refreshTraitCandidates().catch((err) => {
     elTraits.status.textContent = `Failed to load: ${err.message}`;
   });
+  if (tab === 'tables') loadTables().catch((err) => {
+    elTables.empty.hidden = false;
+    elTables.empty.textContent = `Failed to load: ${err.message}`;
+  });
 }
 
 /* ==================================================================== */
@@ -1018,3 +1022,95 @@ elTraits.importBtn.addEventListener('click', async () => {
 loadCategories().catch((err) => {
   el.status.textContent = `Failed to load: ${err.message}`;
 });
+
+/* ==================================================================== */
+/* Tables (per-bullet enable/disable)                                   */
+/* ==================================================================== */
+
+const tablesState = {
+  tables: [],
+  selectedTable: null,
+};
+
+const elTables = {
+  headingList: document.getElementById('table-heading-list'),
+  bulletHeading: document.getElementById('table-bullet-heading'),
+  bulletList: document.getElementById('table-bullet-list'),
+  empty: document.getElementById('tables-empty'),
+};
+
+async function loadTables() {
+  const { tables } = await api('/api/table-bullets');
+  tablesState.tables = tables;
+  elTables.empty.hidden = tables.length > 0;
+  if (!tablesState.selectedTable || !tables.some((t) => t.name === tablesState.selectedTable)) {
+    tablesState.selectedTable = tables[0]?.name ?? null;
+  }
+  renderTableHeadingList();
+  renderTableBullets();
+}
+
+function renderTableHeadingList() {
+  elTables.headingList.innerHTML = '';
+  for (const table of tablesState.tables) {
+    const disabledCount = table.bullets.filter((b) => !b.enabled).length;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'table-heading-row' + (table.name === tablesState.selectedTable ? ' active' : '');
+    row.textContent = disabledCount
+      ? `${table.name} (${table.bullets.length}, ${disabledCount} disabled)`
+      : `${table.name} (${table.bullets.length})`;
+    row.addEventListener('click', () => {
+      tablesState.selectedTable = table.name;
+      renderTableHeadingList();
+      renderTableBullets();
+    });
+    elTables.headingList.appendChild(row);
+  }
+}
+
+function renderTableBullets() {
+  const table = tablesState.tables.find((t) => t.name === tablesState.selectedTable);
+  elTables.bulletHeading.textContent = table ? table.name : 'Select a table';
+  elTables.bulletList.innerHTML = '';
+  if (!table) return;
+  for (const bullet of table.bullets) {
+    const row = document.createElement('label');
+    row.className = 'table-bullet-row';
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = bullet.enabled;
+    check.addEventListener('change', () => toggleBullet(table.name, bullet, check));
+    row.appendChild(check);
+    if (bullet.weight > 1) {
+      const badge = document.createElement('span');
+      badge.className = 'badge weight-badge';
+      badge.textContent = `x${bullet.weight}`;
+      row.appendChild(badge);
+    }
+    const text = document.createElement('span');
+    text.className = 'table-bullet-text';
+    text.textContent = bullet.text;
+    row.appendChild(text);
+    elTables.bulletList.appendChild(row);
+  }
+}
+
+async function toggleBullet(tableName, bullet, checkboxEl) {
+  const nextEnabled = checkboxEl.checked;
+  checkboxEl.disabled = true;
+  try {
+    await api('/api/table-bullets/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: tableName, text: bullet.text, enabled: nextEnabled }),
+    });
+    bullet.enabled = nextEnabled;
+    renderTableHeadingList(); // the disabled-count badge changed
+  } catch (err) {
+    checkboxEl.checked = !nextEnabled; // revert - the write failed
+    alert(`Couldn't update that bullet: ${err.message}`);
+  } finally {
+    checkboxEl.disabled = false;
+  }
+}

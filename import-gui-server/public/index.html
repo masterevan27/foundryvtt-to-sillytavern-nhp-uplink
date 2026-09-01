@@ -13,6 +13,7 @@
     <button type="button" data-tab="import" class="active">Import Generated Art</button>
     <button type="button" data-tab="create">Create NPC</button>
     <button type="button" data-tab="traits">Trait Imports</button>
+    <button type="button" data-tab="tables">Tables</button>
   </nav>
 </header>
 
@@ -120,6 +121,17 @@
 
   <div class="trait-list" id="trait-list"></div>
   <p class="empty" id="trait-empty" hidden>No staged trait candidates yet — run the npc-trait-import skill, then reload.</p>
+</section>
+
+<section class="tab-panel" id="tab-tables" hidden>
+  <div class="tables-layout">
+    <div class="table-heading-list" id="table-heading-list"></div>
+    <div class="table-bullet-panel">
+      <h2 id="table-bullet-heading">Select a table</h2>
+      <div class="table-bullet-list" id="table-bullet-list"></div>
+    </div>
+  </div>
+  <p class="empty" id="tables-empty" hidden>No tables found — check npcTablesPath in config.json.</p>
 </section>
 
 </main>

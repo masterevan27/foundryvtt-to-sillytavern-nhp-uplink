@@ -866,6 +866,7 @@ const traitState = {
   selected: new Set(),
   search: '',
   tableFilter: '',
+  sort: 'when-desc',
 };
 
 const elTraits = {
@@ -876,6 +877,7 @@ const elTraits = {
   selectAll: document.getElementById('trait-select-all'),
   search: document.getElementById('trait-search'),
   tableFilter: document.getElementById('trait-table-filter'),
+  sortSelect: document.getElementById('trait-sort-select'),
   overlay: document.getElementById('trait-detail-overlay'),
   detailClose: document.getElementById('trait-detail-close'),
   detailTable: document.getElementById('trait-detail-table'),
@@ -915,9 +917,17 @@ function traitMatchesFilters(c) {
   return [c.bullet, c.sourceImage, c.notes, c.table].filter(Boolean).join('\n').toLowerCase().includes(search);
 }
 
+function compareTraitCandidates(a, b) {
+  if (traitState.sort === 'when-asc') return (a.generatedAt || '').localeCompare(b.generatedAt || '');
+  if (traitState.sort === 'table') {
+    return a.table.localeCompare(b.table) || (b.generatedAt || '').localeCompare(a.generatedAt || '');
+  }
+  return (b.generatedAt || '').localeCompare(a.generatedAt || ''); // when-desc, the default
+}
+
 function renderTraits() {
   elTraits.list.innerHTML = '';
-  traitState.visible = traitState.candidates.filter(traitMatchesFilters);
+  traitState.visible = traitState.candidates.filter(traitMatchesFilters).sort(compareTraitCandidates);
   elTraits.empty.hidden = traitState.visible.length > 0;
   elTraits.empty.textContent = traitState.candidates.length
     ? 'No candidates match the current filters.'
@@ -950,11 +960,24 @@ function renderTraits() {
     bullet.textContent = c.bullet.length > 160 ? `${c.bullet.slice(0, 160)}…` : c.bullet;
     row.appendChild(bullet);
 
+    if (c.generatedAt) {
+      const generatedBadge = document.createElement('span');
+      generatedBadge.className = 'badge date-badge';
+      generatedBadge.textContent = new Date(c.generatedAt).toLocaleDateString();
+      row.appendChild(generatedBadge);
+    }
+
     if (c.imported) {
       const importedBadge = document.createElement('span');
       importedBadge.className = 'badge';
       importedBadge.textContent = 'Imported';
       row.appendChild(importedBadge);
+      if (c.importedAt) {
+        const importedDateBadge = document.createElement('span');
+        importedDateBadge.className = 'badge date-badge';
+        importedDateBadge.textContent = `on ${new Date(c.importedAt).toLocaleDateString()}`;
+        row.appendChild(importedDateBadge);
+      }
     }
 
     row.addEventListener('click', () => openTraitDetail(c));
@@ -993,6 +1016,10 @@ elTraits.search.addEventListener('input', () => {
 });
 elTraits.tableFilter.addEventListener('change', () => {
   traitState.tableFilter = elTraits.tableFilter.value;
+  renderTraits();
+});
+elTraits.sortSelect.addEventListener('change', () => {
+  traitState.sort = elTraits.sortSelect.value;
   renderTraits();
 });
 elTraits.selectAll.addEventListener('change', () => {

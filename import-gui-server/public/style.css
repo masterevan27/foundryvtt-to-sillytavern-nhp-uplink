@@ -439,6 +439,7 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
   flex-shrink: 0;
 }
 .trait-row .badge { position: static; }
+.trait-row .date-badge { background: #262a33; color: #7c8ba1; }
 .trait-bullet { flex: 1; font-size: 0.85rem; color: #d7dae0; }
 
 .trait-detail-info h3 { font-size: 0.82rem; color: #9aa1ad; margin: 0.9rem 0 0.3rem; }

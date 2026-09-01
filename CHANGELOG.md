@@ -27,6 +27,30 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.2.0 - Import GUI
+_2026-09-01_
+
+A fourth standalone tool joins the project: a local web GUI for turning
+NPCs rolled by the companion generator script into Foundry Actors, without
+hand-copying files through the file picker.
+
+- Browse rolled NPCs, preview portrait/token art, and import selected ones
+  as Actors — importing now copies the art into your Foundry Data folder
+  for you instead of requiring it to already live there.
+- Roll brand-new NPCs from a form over the generator's own options, and
+  regenerate art on an existing one, right from the browser.
+- Delete an NPC's generated files, sort and filter the grid, and see the
+  generation date and prompt behind each one.
+- Import reference-image trait candidates staged by the companion
+  `npc-trait-import` skill straight into the generator's tables.
+
+## 0.1.9 - Example screenshots and release notes tooling
+_2026-08-30_
+
+- New example screenshots and a tidied-up examples section in the README.
+- The release notes you're reading now are generated straight from this
+  changelog file instead of being written by hand at release time.
+
 ## 0.1.8 - Mission briefings
 _2026-08-30_
 

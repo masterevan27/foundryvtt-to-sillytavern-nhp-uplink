@@ -382,10 +382,11 @@ screenshots are in that repository's README.
 Lets a GM browse NPCs rolled by a companion generator script (currently
 `generate-npc.py` in the
 [Lancer TTRPG GM Hub](https://github.com/masterevan27/Lancer-TTRPG-GM-Hub),
-which renders a portrait/token pair per NPC) and pick which ones become
-Actors, instead of hand-copying files through Foundry's file picker. It has
-no dependency on the narration relay above and works whether or not you use
-SillyTavern at all.
+which renders a portrait/token pair per NPC), pick which ones become
+Actors, roll brand-new ones, and curate the generator's own tables —
+instead of hand-copying files through Foundry's file picker and
+hand-editing table markdown. It has no dependency on the narration relay
+above and works whether or not you use SillyTavern at all.
 
 Two halves, same shape as the rest of this project — a standalone local
 server, and a piece of the Foundry module that polls it:
@@ -407,24 +408,48 @@ Edit `config.json`:
 }
 ```
 
-An item only shows as importable once its files actually live under
-`foundryDataRoot` — this tool references images in place, it does not copy
-them in for you. Then:
+Everything else in `config.example.json` is optional and derived by
+default:
+- `pythonExecutable` / `generateNpcScript` — how to invoke the generator
+  for Create NPC and Regenerate; defaults to `python` and the script
+  bundled with `npcManifestPath`'s repo.
+- `foundryNpcSubdir` — the folder imports get nested under inside
+  `foundryDataRoot` (default `LancerNPCs`).
+- `npcTablesPath` / `stagedImportsDir` — where the generator's own
+  `npc-generator-tables.md` and its `npc-trait-import` skill's staged
+  candidates live, for the Tables and Trait Imports tabs.
+- `presetsDir` — where saved table presets are written.
+
+Then:
 
 ```bash
 node server.js
 ```
 
-and open `http://127.0.0.1:5089` in a browser. Pick a category, click a
-card to preview its portrait and token, check the ones you want, and
-**Import Selected**.
+and open `http://127.0.0.1:5089` in a browser. Four tabs:
 
-The **Tables** tab shows every bullet in every table of the NPC
-generator's `npc-generator-tables.md`, letting you disable ones you don't
-want it rolling — without deleting them, so they can be re-enabled later.
-Save your current set of disabled bullets as a named preset, download it,
-and hand the file to someone else; they can import it into their own copy
-of this GUI, preview exactly what it would change, and apply it.
+- **Import Generated Art** — pick a category, click a card to preview its
+  portrait and token, check the ones you want, and **Import Selected**.
+  Importing copies the files into `foundryDataRoot` for you if they aren't
+  there already, so nothing needs to be pre-staged under your Foundry Data
+  folder by hand. Sort and filter the grid, see when each NPC was
+  generated and the prompt that produced its art, regenerate art on any
+  of them, and **Delete Selected** to remove an NPC's generated files
+  entirely (blocked while an import or regen is in flight; never touches
+  an Actor already created in Foundry).
+- **Create NPC** — a form over `generate-npc.py`'s roll options (count,
+  seed, name, pronouns, per-table trait overrides, portrait/token toggles,
+  dry-run-vs-generate) that rolls new NPCs into the same review flow as
+  the CLI, ready to import from the first tab.
+- **Trait Imports** — lists reference-image trait candidates staged by
+  the `npc-trait-import` skill, sortable and dated, and appends the ones
+  you approve as new bullets in `npc-generator-tables.md`.
+- **Tables** — shows every bullet in every table of
+  `npc-generator-tables.md` and lets you disable ones you don't want
+  rolled, without deleting them, so they can be re-enabled later. Save
+  your current set of disabled bullets as a named preset, download it, and
+  hand the file to someone else; they can import it into their own copy of
+  this GUI, preview exactly what it would change, and apply it.
 
 In Foundry, **Game Settings → Configure Settings → FoundryVTT to
 SillyTavern NHP Uplink**, set **Import GUI server URL** to that same

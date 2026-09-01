@@ -28,7 +28,7 @@ async function savePreset(server, name) {
     });
 }
 
-test('POST /api/presets saves a snapshot of every currently-disabled bullet', async (t) => {
+test('POST /api/presets saves a snapshot of every table, listing only currently-enabled bullets', async (t) => {
     const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5198 });
     t.after(() => server.stop());
 
@@ -39,11 +39,18 @@ test('POST /api/presets saves a snapshot of every currently-disabled bullet', as
     const { slug } = await saveRes.json();
     assert.equal(slug, 'grittier-frontier');
 
+    const exportRes = await fetch(`${server.baseUrl}/api/presets/export?slug=grittier-frontier`);
+    const saved = await exportRes.json();
+    assert.deepEqual(saved.selected, {
+        Outfit: [{ text: 'a heavy work jacket over a stained undersuit || civ', weight: 1 }],
+        Gear: [{ text: 'nothing at all, hands loose and empty', weight: 1 }],
+    });
+
     const listRes = await fetch(`${server.baseUrl}/api/presets`);
     const { presets } = await listRes.json();
     assert.equal(presets.length, 1);
     assert.equal(presets[0].slug, 'grittier-frontier');
-    assert.equal(presets[0].count, 1);
+    assert.equal(presets[0].count, 2);
 });
 
 test('POST /api/presets returns 409 for a duplicate name', async (t) => {
@@ -83,9 +90,9 @@ test('POST /api/presets/import previews without writing anything to disk', async
     const preset = {
         name: "Someone Else's Preset",
         created: '2026-01-01T00:00:00.000Z',
-        disabled: {
-            Outfit: ['a heavy work jacket over a stained undersuit || civ'],
-            Headgear: ['a hat that does not exist'],
+        selected: {
+            Outfit: [{ text: 'a heavy work jacket over a stained undersuit || civ', weight: 2 }],
+            Headgear: [{ text: 'a hat that does not exist', weight: 1 }],
         },
     };
     const res = await fetch(`${server.baseUrl}/api/presets/import`, {
@@ -93,39 +100,76 @@ test('POST /api/presets/import previews without writing anything to disk', async
     });
     assert.equal(res.status, 200);
     const diff = await res.json();
-    assert.deepEqual(diff.willDisable, [{ table: 'Outfit', text: 'a heavy work jacket over a stained undersuit || civ' }]);
+    assert.deepEqual(diff.willReweight, [{ table: 'Outfit', text: 'a heavy work jacket over a stained undersuit || civ', weight: 2 }]);
+    assert.deepEqual(diff.willDisable, [{ table: 'Outfit', text: 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ' }]);
     assert.deepEqual(diff.notFound, [{ table: 'Headgear', text: 'a hat that does not exist' }]);
 
     const tablesRes = await fetch(`${server.baseUrl}/api/table-bullets`);
     const { tables } = await tablesRes.json();
     const outfit = tables.find((t) => t.name === 'Outfit');
-    const bullet = outfit.bullets.find((b) => b.text === 'a heavy work jacket over a stained undersuit || civ');
-    assert.equal(bullet.enabled, true, 'import must not write anything - the bullet should still be enabled');
+    const jacket = outfit.bullets.find((b) => b.text === 'a heavy work jacket over a stained undersuit || civ');
+    assert.equal(jacket.weight, 1, 'import must not write anything - the weight should be untouched');
 });
 
-test('POST /api/presets/apply disables only the willDisable bullets and leaves the rest untouched', async (t) => {
+test('POST /api/presets/apply enables and reweights bullets in a covered table, leaving an uncovered table untouched', async (t) => {
     const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5198 });
     t.after(() => server.stop());
+
+    await toggle(server, 'Outfit', 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ', false);
 
     const preset = {
         name: 'Apply Me',
         created: '2026-01-01T00:00:00.000Z',
-        disabled: { Outfit: ['a heavy work jacket over a stained undersuit || civ'] },
+        selected: {
+            Outfit: [
+                { text: 'a heavy work jacket over a stained undersuit || civ', weight: 3 },
+                { text: 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ', weight: 1 },
+            ],
+        },
     };
     const res = await fetch(`${server.baseUrl}/api/presets/apply`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preset),
     });
     assert.equal(res.status, 200);
     const diff = await res.json();
-    assert.deepEqual(diff.willDisable, [{ table: 'Outfit', text: 'a heavy work jacket over a stained undersuit || civ' }]);
+    assert.deepEqual(diff.willReweight, [{ table: 'Outfit', text: 'a heavy work jacket over a stained undersuit || civ', weight: 3 }]);
+    assert.deepEqual(diff.willEnable, [{ table: 'Outfit', text: 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ', weight: 1 }]);
+    assert.deepEqual(diff.willDisable, []);
 
     const tablesRes = await fetch(`${server.baseUrl}/api/table-bullets`);
     const { tables } = await tablesRes.json();
     const outfit = tables.find((t) => t.name === 'Outfit');
     const jacket = outfit.bullets.find((b) => b.text === 'a heavy work jacket over a stained undersuit || civ');
-    assert.equal(jacket.enabled, false);
+    assert.equal(jacket.weight, 3);
     const tee = outfit.bullets.find((b) => b.text === 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ');
-    assert.equal(tee.enabled, true, 'a bullet the preset never mentioned must stay untouched');
+    assert.equal(tee.enabled, true);
+    assert.equal(tee.weight, 1);
+    const gear = tables.find((t) => t.name === 'Gear');
+    assert.equal(gear.bullets[0].enabled, true, 'Gear was not covered by this preset and must stay untouched');
+});
+
+test('POST /api/presets/apply disables an enabled bullet the preset does not select in a table it covers', async (t) => {
+    const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5198 });
+    t.after(() => server.stop());
+
+    const preset = {
+        name: 'Trim Outfit',
+        created: '2026-01-01T00:00:00.000Z',
+        selected: { Outfit: [{ text: 'a heavy work jacket over a stained undersuit || civ', weight: 1 }] },
+    };
+    const res = await fetch(`${server.baseUrl}/api/presets/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preset),
+    });
+    const diff = await res.json();
+    assert.deepEqual(diff.willDisable, [{ table: 'Outfit', text: 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ' }]);
+
+    const tablesRes = await fetch(`${server.baseUrl}/api/table-bullets`);
+    const { tables } = await tablesRes.json();
+    const outfit = tables.find((t) => t.name === 'Outfit');
+    const tee = outfit.bullets.find((b) => b.text === 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ');
+    assert.equal(tee.enabled, false);
+    const gear = tables.find((t) => t.name === 'Gear');
+    assert.equal(gear.bullets[0].enabled, true, 'Gear was not covered by this preset and must stay untouched');
 });
 
 test('POST /api/presets/delete removes a saved preset', async (t) => {

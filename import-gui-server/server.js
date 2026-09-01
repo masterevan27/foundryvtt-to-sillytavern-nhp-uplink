@@ -124,8 +124,8 @@ const NPC_TABLES_PATH = config.npcTablesPath
 const STAGED_IMPORTS_DIR = config.stagedImportsDir
     || path.join(path.dirname(NPC_TABLES_PATH), 'staged-imports');
 
-// presets/ - saved snapshots of disabled table bullets - defaults to a
-// sibling of staged-imports/, both alongside npc-generator-tables.md.
+// presets/ - saved snapshots of each table's selected bullets - defaults
+// to a sibling of staged-imports/, both alongside npc-generator-tables.md.
 const PRESETS_DIR = config.presetsDir
     || path.join(path.dirname(NPC_TABLES_PATH), 'presets');
 
@@ -903,7 +903,7 @@ async function handleApi(req, res, url) {
             return sendJson(res, 409, { error: `a preset named "${name}" already exists` });
         }
         const parsed = tableBullets.readTables(NPC_TABLES_PATH);
-        const preset = { name, created: new Date().toISOString(), disabled: presets.snapshotDisabled(parsed) };
+        const preset = { name, created: new Date().toISOString(), selected: presets.snapshotSelected(parsed) };
         presets.writePreset(PRESETS_DIR, slug, preset);
         return sendJson(res, 200, { ok: true, slug });
     }
@@ -942,11 +942,11 @@ async function handleApi(req, res, url) {
         } catch (err) {
             return sendJson(res, 400, { error: err.message });
         }
-        if (!body || typeof body.disabled !== 'object' || body.disabled === null) {
-            return sendJson(res, 400, { error: 'not a valid preset file - missing "disabled"' });
+        if (!body || typeof body.selected !== 'object' || body.selected === null) {
+            return sendJson(res, 400, { error: 'not a valid preset file - missing "selected"' });
         }
         const parsed = tableBullets.readTables(NPC_TABLES_PATH);
-        return sendJson(res, 200, presets.diffPresetAgainstTables(body.disabled, parsed));
+        return sendJson(res, 200, presets.diffPresetAgainstTables(body.selected, parsed));
     }
 
     if (url.pathname === '/api/presets/apply' && req.method === 'POST') {
@@ -957,13 +957,17 @@ async function handleApi(req, res, url) {
         } catch (err) {
             return sendJson(res, 400, { error: err.message });
         }
-        if (!body || typeof body.disabled !== 'object' || body.disabled === null) {
-            return sendJson(res, 400, { error: 'not a valid preset file - missing "disabled"' });
+        if (!body || typeof body.selected !== 'object' || body.selected === null) {
+            return sendJson(res, 400, { error: 'not a valid preset file - missing "selected"' });
         }
         // Re-diff against the live file rather than trusting a preview the
         // client may have shown a while ago - the file could have changed.
         const parsed = tableBullets.readTables(NPC_TABLES_PATH);
-        const diff = presets.diffPresetAgainstTables(body.disabled, parsed);
+        const diff = presets.diffPresetAgainstTables(body.selected, parsed);
+        for (const { table, text, weight } of [...diff.willEnable, ...diff.willReweight]) {
+            tableBullets.toggleBulletOnDisk(NPC_TABLES_PATH, table, text, true);
+            tableBullets.setBulletWeightOnDisk(NPC_TABLES_PATH, table, text, weight);
+        }
         for (const { table, text } of diff.willDisable) {
             tableBullets.toggleBulletOnDisk(NPC_TABLES_PATH, table, text, false);
         }

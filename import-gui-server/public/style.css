@@ -516,6 +516,17 @@ button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7
 }
 .preset-name { flex: 1; }
 .preset-date { color: #9aa1ad; font-size: 0.78rem; }
+.preset-download {
+  color: #8fb3ff;
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #363b47;
+  border-radius: 4px;
+  background: #262a33;
+}
+.preset-download:hover, .preset-download:focus-visible { background: #2c2f38; border-color: #3d6ef0; }
+.preset-download:visited { color: #8fb3ff; }
 .preset-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; align-items: center; }
 .preset-import-label {
   background: #262a33;

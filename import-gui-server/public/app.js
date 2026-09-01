@@ -1215,6 +1215,7 @@ function renderPresetList() {
     row.appendChild(date);
 
     const download = document.createElement('a');
+    download.className = 'preset-download';
     download.href = `/api/presets/export?slug=${encodeURIComponent(preset.slug)}`;
     download.textContent = 'Download';
     download.download = `${preset.slug}.json`;

@@ -67,3 +67,45 @@ test('POST /api/table-bullets/toggle returns 400 when the body is missing requir
     });
     assert.equal(res.status, 400);
 });
+
+test("POST /api/table-bullets/set-weight changes a bullet's weight, reflected on the next GET", async (t) => {
+    const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5199 });
+    t.after(() => server.stop());
+
+    const res = await fetch(`${server.baseUrl}/api/table-bullets/set-weight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'Outfit', text: 'nondescript grey work coveralls', weight: 6 }),
+    });
+    assert.equal(res.status, 200);
+
+    const tablesRes = await fetch(`${server.baseUrl}/api/table-bullets`);
+    const { tables } = await tablesRes.json();
+    const outfit = tables.find((t) => t.name === 'Outfit');
+    const bullet = outfit.bullets.find((b) => b.text === 'nondescript grey work coveralls');
+    assert.equal(bullet.weight, 6);
+});
+
+test('POST /api/table-bullets/set-weight returns 400 for a non-integer weight', async (t) => {
+    const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5199 });
+    t.after(() => server.stop());
+
+    const res = await fetch(`${server.baseUrl}/api/table-bullets/set-weight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'Outfit', text: 'nondescript grey work coveralls', weight: 0 }),
+    });
+    assert.equal(res.status, 400);
+});
+
+test('POST /api/table-bullets/set-weight returns 400 for a bullet that does not exist', async (t) => {
+    const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5199 });
+    t.after(() => server.stop());
+
+    const res = await fetch(`${server.baseUrl}/api/table-bullets/set-weight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'Outfit', text: 'not a real bullet', weight: 2 }),
+    });
+    assert.equal(res.status, 400);
+});

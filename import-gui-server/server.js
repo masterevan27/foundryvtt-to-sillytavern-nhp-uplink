@@ -865,6 +865,24 @@ async function handleApi(req, res, url) {
         return sendJson(res, 200, { ok: true });
     }
 
+    if (url.pathname === '/api/table-bullets/set-weight' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const { table, text, weight } = body;
+        if (typeof table !== 'string' || !table || typeof text !== 'string'
+            || !Number.isInteger(weight) || weight < 1) {
+            return sendJson(res, 400, { error: 'table (string), text (string), and weight (integer >= 1) are required' });
+        }
+        const result = tableBullets.setBulletWeightOnDisk(NPC_TABLES_PATH, table, text, weight);
+        if (!result.ok) return sendJson(res, 400, { error: result.error });
+        return sendJson(res, 200, { ok: true });
+    }
+
     if (url.pathname === '/api/presets' && req.method === 'GET') {
         return sendJson(res, 200, { presets: presets.listPresets(PRESETS_DIR) });
     }

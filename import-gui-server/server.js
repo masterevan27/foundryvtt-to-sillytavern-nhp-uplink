@@ -76,7 +76,9 @@ const DEFAULT_CONFIG = {
 };
 
 function loadConfig() {
-    const file = path.join(__dirname, 'config.json');
+    // Overridable so tests can point a real server.js process at a synthetic
+    // fixture config without ever touching the real config.json.
+    const file = process.env.IMPORT_GUI_CONFIG || path.join(__dirname, 'config.json');
     let fromFile = {};
     try {
         if (fs.existsSync(file)) fromFile = JSON.parse(fs.readFileSync(file, 'utf8'));

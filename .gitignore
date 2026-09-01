@@ -66,6 +66,7 @@ build/
 # ---------------------------------------------------------------------------
 .claude/launch.json
 .claudeignore
+.claude_to_do_list.md
 
 # ---------------------------------------------------------------------------
 # Generated at build time
@@ -73,3 +74,4 @@ build/
 # Compiled from CHANGELOG.md by tools/build-changelog.mjs. Ships in module.zip,
 # but committing it would mean two copies of the notes, which is how they drift.
 foundry-module/foundryvtt-to-sillytavern-nhp-uplink/changelog.json
+

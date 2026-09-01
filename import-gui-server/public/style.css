@@ -55,6 +55,15 @@ main { padding: 1rem 1.25rem 5rem; }
 }
 .select-all { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
 .status { color: #9aa1ad; font-size: 0.85rem; flex: 1; }
+.sort-by { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.sort-by select {
+  background: #262a33;
+  border: 1px solid #363b47;
+  color: #e6e6e6;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
 #import-btn {
   background: #3d6ef0;
   border: none;
@@ -65,6 +74,18 @@ main { padding: 1rem 1.25rem 5rem; }
   cursor: pointer;
 }
 #import-btn:disabled { background: #2c2f38; color: #6b7280; cursor: default; }
+
+button.danger {
+  background: #c0392b;
+  border: 1px solid #c0392b;
+  color: white;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.danger:hover { background: #a5311f; }
+button.danger:disabled { background: #2c2f38; border-color: #363b47; color: #6b7280; cursor: default; }
 
 .filters {
   display: flex;
@@ -243,6 +264,33 @@ main { padding: 1rem 1.25rem 5rem; }
 }
 .detail-info h2 { margin: 0 0 0.15rem; }
 .detail-info p { margin: 0 0 0.75rem; color: #9aa1ad; }
+.detail-generated { margin-top: -0.5rem; font-size: 0.8rem; color: #6b7280; }
+.detail-title-row { display: flex; align-items: baseline; gap: 0.9rem; }
+.detail-title-row h2 { flex: 1; }
+.detail-title-row .danger { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+.confirm-dialog { max-width: 480px; }
+.confirm-dialog h2 { margin: 0 0 0.6rem; }
+.confirm-dialog p { color: #d7dae0; }
+.confirm-dialog .confirm-warning { color: #e0a458; font-size: 0.85rem; }
+#delete-confirm-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  max-height: 30vh;
+  overflow: auto;
+  font-size: 0.88rem;
+  color: #e6e6e6;
+}
+.confirm-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+.confirm-actions button {
+  background: #262a33;
+  border: 1px solid #363b47;
+  color: #e6e6e6;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
 
 .regen-panel {
   background: #14161b;
@@ -288,6 +336,17 @@ main { padding: 1rem 1.25rem 5rem; }
 #detail-traits { border-collapse: collapse; font-size: 0.85rem; }
 #detail-traits td { padding: 0.15rem 0.6rem 0.15rem 0; vertical-align: top; }
 #detail-traits td:first-child { color: #9aa1ad; white-space: nowrap; }
+#detail-prompts h3 { font-size: 0.82rem; color: #9aa1ad; margin: 0.9rem 0 0.3rem; }
+#detail-prompts pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #0e0f13;
+  border: 1px solid #2c2f38;
+  border-radius: 6px;
+  padding: 0.6rem;
+  font-size: 0.82rem;
+  margin: 0;
+}
 
 /* ---- Create NPC ---- */
 

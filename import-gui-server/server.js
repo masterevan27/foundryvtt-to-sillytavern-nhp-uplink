@@ -49,6 +49,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const tableBullets = require('./lib/tableBullets');
 
 const PLUGIN_ID = 'import-gui-server';
 
@@ -834,6 +835,27 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/npc-tables' && req.method === 'GET') {
         return sendJson(res, 200, { tables: OVERRIDE_TABLES });
+    }
+
+    if (url.pathname === '/api/table-bullets' && req.method === 'GET') {
+        return sendJson(res, 200, { tables: tableBullets.readTables(NPC_TABLES_PATH) });
+    }
+
+    if (url.pathname === '/api/table-bullets/toggle' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const { table, text, enabled } = body;
+        if (typeof table !== 'string' || !table || typeof text !== 'string' || typeof enabled !== 'boolean') {
+            return sendJson(res, 400, { error: 'table (string), text (string), and enabled (boolean) are required' });
+        }
+        const result = tableBullets.toggleBulletOnDisk(NPC_TABLES_PATH, table, text, enabled);
+        if (!result.ok) return sendJson(res, 400, { error: result.error });
+        return sendJson(res, 200, { ok: true });
     }
 
     if (url.pathname === '/api/create-npc' && req.method === 'POST') {

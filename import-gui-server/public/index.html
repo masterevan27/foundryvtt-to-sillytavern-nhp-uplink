@@ -27,7 +27,18 @@
       Select all not-yet-imported
     </label>
     <span class="status" id="status"></span>
+    <label class="sort-by">
+      Sort by
+      <select id="sort-select">
+        <option value="name-asc">Name (A→Z)</option>
+        <option value="name-desc">Name (Z→A)</option>
+        <option value="when-desc" selected>Newest first</option>
+        <option value="when-asc">Oldest first</option>
+        <option value="role-category">Role category</option>
+      </select>
+    </label>
     <button id="import-btn" disabled>Import Selected (0)</button>
+    <button id="delete-btn" class="danger" disabled>Delete Selected (0)</button>
   </div>
 
   <div class="filters" id="filters">
@@ -127,8 +138,12 @@
       </figure>
     </div>
     <div class="detail-info">
-      <h2 id="detail-name"></h2>
+      <div class="detail-title-row">
+        <h2 id="detail-name"></h2>
+        <button id="detail-delete-btn" class="danger" type="button">Delete…</button>
+      </div>
       <p id="detail-sub"></p>
+      <p class="detail-generated" id="detail-generated"></p>
 
       <div class="regen-panel" id="regen-panel" hidden>
         <h3>Regenerate art</h3>
@@ -152,6 +167,13 @@
       </div>
 
       <table id="detail-traits"></table>
+
+      <div id="detail-prompts">
+        <h3>Portrait prompt</h3>
+        <pre id="detail-portrait-prompt"></pre>
+        <h3>Token prompt</h3>
+        <pre id="detail-token-prompt"></pre>
+      </div>
     </div>
   </div>
 </div>
@@ -176,6 +198,19 @@
 
 <div class="image-zoom" id="image-zoom" hidden>
   <img id="image-zoom-img" alt="" />
+</div>
+
+<div class="detail-overlay" id="delete-confirm-overlay" hidden>
+  <div class="detail confirm-dialog">
+    <h2>Delete permanently?</h2>
+    <p id="delete-confirm-message"></p>
+    <ul id="delete-confirm-list"></ul>
+    <p class="confirm-warning">This deletes the generated files from disk and cannot be undone.</p>
+    <div class="confirm-actions">
+      <button id="delete-confirm-cancel" type="button">Cancel</button>
+      <button id="delete-confirm-ok" class="danger" type="button">Delete Permanently</button>
+    </div>
+  </div>
 </div>
 
 <script src="/app.js"></script>

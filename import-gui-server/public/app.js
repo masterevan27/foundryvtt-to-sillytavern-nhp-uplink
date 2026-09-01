@@ -15,6 +15,7 @@ const state = {
   selected: new Set(),
   pollTimer: null,
   search: '',
+  sort: 'when-desc',
   filters: [], // { key, value }
   detailItemId: null,     // item currently shown in the detail overlay, if any
   regenLastStatus: null,  // that item's regenStatus as of the last render, to catch done/error transitions
@@ -26,8 +27,10 @@ const el = {
   empty: document.getElementById('empty'),
   status: document.getElementById('status'),
   importBtn: document.getElementById('import-btn'),
+  deleteBtn: document.getElementById('delete-btn'),
   selectAll: document.getElementById('select-all'),
   filterSearch: document.getElementById('filter-search'),
+  sortSelect: document.getElementById('sort-select'),
   filterRows: document.getElementById('filter-rows'),
   addFilterBtn: document.getElementById('add-filter'),
   overlay: document.getElementById('detail-overlay'),
@@ -36,7 +39,11 @@ const el = {
   detailToken: document.getElementById('detail-token'),
   detailName: document.getElementById('detail-name'),
   detailSub: document.getElementById('detail-sub'),
+  detailGenerated: document.getElementById('detail-generated'),
   detailTraits: document.getElementById('detail-traits'),
+  detailPrompts: document.getElementById('detail-prompts'),
+  detailPortraitPrompt: document.getElementById('detail-portrait-prompt'),
+  detailTokenPrompt: document.getElementById('detail-token-prompt'),
   imageZoom: document.getElementById('image-zoom'),
   imageZoomImg: document.getElementById('image-zoom-img'),
   regenPanel: document.getElementById('regen-panel'),
@@ -44,7 +51,44 @@ const el = {
   regenCurrentSeed: document.getElementById('regen-current-seed'),
   regenBtn: document.getElementById('regen-btn'),
   regenStatus: document.getElementById('regen-status'),
+  detailDeleteBtn: document.getElementById('detail-delete-btn'),
 };
+
+const elDeleteConfirm = {
+  overlay: document.getElementById('delete-confirm-overlay'),
+  message: document.getElementById('delete-confirm-message'),
+  list: document.getElementById('delete-confirm-list'),
+  cancel: document.getElementById('delete-confirm-cancel'),
+  ok: document.getElementById('delete-confirm-ok'),
+};
+
+/** Shows the delete-confirmation modal for the given item names; resolves true/false. */
+function confirmDelete(names) {
+  return new Promise((resolve) => {
+    elDeleteConfirm.message.textContent = names.length === 1
+      ? `Permanently delete "${names[0]}"?`
+      : `Permanently delete these ${names.length} items?`;
+    elDeleteConfirm.list.innerHTML = names.length > 1
+      ? names.map((n) => `<li>${escapeHtml(n)}</li>`).join('')
+      : '';
+    elDeleteConfirm.overlay.hidden = false;
+
+    const cleanup = (result) => {
+      elDeleteConfirm.overlay.hidden = true;
+      elDeleteConfirm.ok.removeEventListener('click', onOk);
+      elDeleteConfirm.cancel.removeEventListener('click', onCancel);
+      elDeleteConfirm.overlay.removeEventListener('click', onBackdrop);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => { if (e.target === elDeleteConfirm.overlay) cleanup(false); };
+
+    elDeleteConfirm.ok.addEventListener('click', onOk);
+    elDeleteConfirm.cancel.addEventListener('click', onCancel);
+    elDeleteConfirm.overlay.addEventListener('click', onBackdrop);
+  });
+}
 
 async function api(path, options) {
   const res = await fetch(path, options);
@@ -85,10 +129,10 @@ async function refreshItems() {
   if (!state.category) return;
   const { items } = await api(`/api/items?category=${encodeURIComponent(state.category)}`);
   state.items = items;
+  // Only drop selections for items that vanished entirely (e.g. deleted) -
+  // an imported item stays selectable since selection also drives Delete Selected.
   for (const id of [...state.selected]) {
-    if (!items.some((i) => i.id === id) || items.find((i) => i.id === id).imported) {
-      state.selected.delete(id);
-    }
+    if (!items.some((i) => i.id === id)) state.selected.delete(id);
   }
   renderFilterRows();
   render();
@@ -139,6 +183,22 @@ function itemMatchesFilters(item) {
     if (!value.includes(filter.value.trim().toLowerCase())) return false;
   }
   return true;
+}
+
+/** Comparators for the "Sort by" dropdown - `when` sorts lexicographically fine
+ * since generate-npc.py writes it as "YYYY-MM-DD HH:MM:SS". */
+const SORTERS = {
+  'name-asc': (a, b) => a.name.localeCompare(b.name),
+  'name-desc': (a, b) => b.name.localeCompare(a.name),
+  'when-desc': (a, b) => (b.when || '').localeCompare(a.when || ''),
+  'when-asc': (a, b) => (a.when || '').localeCompare(b.when || ''),
+  'role-category': (a, b) =>
+    (a.roleCategory || '').localeCompare(b.roleCategory || '') || a.name.localeCompare(b.name),
+};
+
+function sortItems(items) {
+  const cmp = SORTERS[state.sort] || SORTERS['name-asc'];
+  return [...items].sort(cmp);
 }
 
 function renderFilterRows() {
@@ -210,7 +270,7 @@ function renderFilterRows() {
 
 function render() {
   el.grid.innerHTML = '';
-  state.visibleItems = state.items.filter(itemMatchesFilters);
+  state.visibleItems = sortItems(state.items.filter(itemMatchesFilters));
   el.empty.textContent = state.items.length && !state.visibleItems.length
     ? 'No items match the current filters.'
     : 'Nothing here yet — run generate-npc.py, then reload.';
@@ -229,7 +289,9 @@ function render() {
     check.type = 'checkbox';
     check.className = 'check';
     check.checked = state.selected.has(item.id);
-    check.disabled = item.imported || !item.importable;
+    // Selection also drives Delete Selected, which makes sense for imported
+    // and non-importable (missing-files) entries too - only Import Selected
+    // itself skips those (server-side, with a reason shown in the status line).
     check.title = !item.importable ? 'Source images missing on disk' : '';
     check.addEventListener('click', (e) => e.stopPropagation());
     check.addEventListener('change', () => {
@@ -286,6 +348,8 @@ function render() {
 function updateToolbar() {
   el.importBtn.textContent = `Import Selected (${state.selected.size})`;
   el.importBtn.disabled = state.selected.size === 0;
+  el.deleteBtn.textContent = `Delete Selected (${state.selected.size})`;
+  el.deleteBtn.disabled = state.selected.size === 0;
   const notImported = state.visibleItems.filter((i) => !i.imported && i.importable);
   el.selectAll.checked = notImported.length > 0 && notImported.every((i) => state.selected.has(i.id));
 }
@@ -296,23 +360,44 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+/** item.when is generate-npc.py's "%Y-%m-%d %H:%M:%S" local-time string - parse
+ * it explicitly rather than via `new Date(str)`, whose handling of a
+ * space-separated (non-ISO) timestamp isn't reliable across engines. */
+function formatGeneratedWhen(when) {
+  if (!when) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(when);
+  if (!m) return `Generated ${when}`;
+  const [y, mo, d, h, mi, s] = m.slice(1).map(Number);
+  const date = new Date(y, mo - 1, d, h, mi, s);
+  if (Number.isNaN(date.getTime())) return `Generated ${when}`;
+  return `Generated ${date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })}`;
+}
+
 function openDetail(item) {
-  // Cache-bust unconditionally: if this item was regenerated while the
-  // overlay was closed, the <img> may already hold this exact src from a
-  // previous open, and reassigning the same string is a DOM no-op that skips
-  // the request entirely - Cache-Control: no-store on the response only
-  // helps once a request is actually made.
-  const bust = `&t=${Date.now()}`;
-  el.detailPortrait.src = item.portraitUrl ? item.portraitUrl + bust : '';
-  el.detailToken.src = item.tokenUrl ? item.tokenUrl + bust : '';
+  // portraitUrl/tokenUrl carry the source file's mtime as a version query
+  // param (see itemView in server.js), so a Regenerate since this item was
+  // last shown naturally produces a different src here - no manual
+  // cache-busting needed.
+  el.detailPortrait.src = item.portraitUrl || '';
+  el.detailToken.src = item.tokenUrl || '';
   el.detailName.textContent = item.name;
   el.detailSub.textContent = [item.roleCategory, item.traits?.Role, item.traits?.Faction]
     .filter(Boolean)
     .join(' — ');
+  el.detailGenerated.textContent = formatGeneratedWhen(item.when);
   el.detailTraits.innerHTML = Object.entries(item.traits || {})
     .filter(([k]) => !['name', 'Given names', 'Family names'].includes(k))
     .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
     .join('');
+
+  // Only recorded by generate-npc.py versions new enough to save it - older
+  // manifest entries just hide this section rather than show it empty.
+  el.detailPrompts.hidden = !item.portraitPrompt && !item.tokenPrompt;
+  el.detailPortraitPrompt.textContent = item.portraitPrompt || '';
+  el.detailTokenPrompt.textContent = item.tokenPrompt || '';
 
   state.detailItemId = item.id;
   state.regenLastStatus = item.regenStatus ?? null;
@@ -351,12 +436,12 @@ function renderRegenPanel(item) {
     el.regenStatus.textContent = '';
   }
 
+  // portraitUrl/tokenUrl already changed (their &v= mtime stamp) the moment
+  // the regen job finished and rewrote the file, so just reassigning them
+  // here picks up the new art - no manual cache-busting needed.
   if (justFinished) {
-    // Cache-Control: no-store keeps the browser from serving a stale copy,
-    // but a query-string bump still forces a fresh request for this src.
-    const bust = `&t=${Date.now()}`;
-    if (item.portraitUrl) el.detailPortrait.src = item.portraitUrl + bust;
-    if (item.tokenUrl) el.detailToken.src = item.tokenUrl + bust;
+    if (item.portraitUrl) el.detailPortrait.src = item.portraitUrl;
+    if (item.tokenUrl) el.detailToken.src = item.tokenUrl;
   }
   state.regenLastStatus = item.regenStatus ?? null;
 }
@@ -446,6 +531,11 @@ el.filterSearch.addEventListener('input', () => {
   render();
 });
 
+el.sortSelect.addEventListener('change', () => {
+  state.sort = el.sortSelect.value;
+  render();
+});
+
 el.addFilterBtn.addEventListener('click', () => {
   state.filters.push({ key: '', value: '' });
   renderFilterRows();
@@ -468,6 +558,51 @@ el.importBtn.addEventListener('click', async () => {
   state.selected.clear();
   await refreshItems();
   startPolling();
+});
+
+el.deleteBtn.addEventListener('click', async () => {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  const names = ids.map((id) => state.items.find((i) => i.id === id)?.name || id);
+  if (!(await confirmDelete(names))) return;
+
+  el.deleteBtn.disabled = true;
+  const { results } = await api('/api/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  const failed = results.filter((r) => !r.deleted);
+  el.status.textContent = failed.length
+    ? `Deleted ${results.length - failed.length}, failed ${failed.length} (${failed.map((f) => f.reason).join('; ')})`
+    : `Deleted ${results.length} item(s).`;
+  state.selected.clear();
+  await refreshItems();
+});
+
+el.detailDeleteBtn.addEventListener('click', async () => {
+  const id = state.detailItemId;
+  if (!id) return;
+  const item = state.items.find((i) => i.id === id);
+  const name = item?.name || id;
+  if (!(await confirmDelete([name]))) return;
+
+  const { results } = await api('/api/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [id] }),
+  });
+  const result = results[0];
+  if (result?.deleted) {
+    el.overlay.hidden = true;
+    el.imageZoom.hidden = true;
+    state.detailItemId = null;
+    state.selected.delete(id);
+    el.status.textContent = `Deleted "${name}".`;
+    await refreshItems();
+  } else {
+    el.status.textContent = `Couldn't delete "${name}": ${result?.reason || 'unknown error'}`;
+  }
 });
 
 /** Shared by the import flow and the regenerate-art flow - whichever queued something. */

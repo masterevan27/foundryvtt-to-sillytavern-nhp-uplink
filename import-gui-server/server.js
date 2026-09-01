@@ -237,6 +237,46 @@ function itemFile(item, which) {
     return name ? path.join(item.folderPath, name) : null;
 }
 
+/**
+ * File mtime in ms, or null - used only as a cache-busting version stamp on
+ * image URLs (see itemView) so a Regenerate that overwrites a portrait/token
+ * in place is reflected immediately in the GUI (grid thumbnails included, not
+ * just the detail overlay) instead of however long the browser feels like
+ * keeping the old bytes around under the old URL.
+ */
+function fileVersion(file) {
+    try {
+        return Math.round(fs.statSync(file).mtimeMs);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Permanently deletes a generated item: its whole folder on disk (portrait,
+ * token, and any other files generate-npc.py wrote alongside them) plus its
+ * manifest entry. Does *not* touch a Foundry Actor already created from it -
+ * if the item was imported, its folder is the copy under foundryDataRoot
+ * (see copyIntoFoundry), so this only removes the source art and the GUI's
+ * record of it, not the Actor itself.
+ */
+function deleteItem(item) {
+    try {
+        fs.rmSync(item.folderPath, { recursive: true, force: true });
+    } catch (err) {
+        throw new Error(`couldn't delete files: ${err.message}`);
+    }
+
+    const raw = fs.readFileSync(config.npcManifestPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    delete parsed[item.folderPath];
+    fs.writeFileSync(config.npcManifestPath, JSON.stringify(sortKeysDeep(parsed), null, 2));
+
+    jobsByItemId.delete(item.id);
+    regenJobsByItemId.delete(item.id);
+    if (importedIndex.delete(item.id)) saveIndex();
+}
+
 /* ------------------------------------------------------------------ */
 /* Import job queue + dedup index                                      */
 /* ------------------------------------------------------------------ */
@@ -617,6 +657,8 @@ function itemView(item) {
     const job = jobsByItemId.get(item.id);
     const regenJob = regenJobsByItemId.get(item.id);
     const imported = importedIndex.get(item.id) || null;
+    const portraitFile = itemFile(item, 'portrait');
+    const tokenFile = itemFile(item, 'token');
     return {
         id: item.id,
         kind: item.kind,
@@ -641,8 +683,16 @@ function itemView(item) {
         jobError: job?.error ?? null,
         regenStatus: regenJob ? regenJob.status : null,
         regenError: regenJob?.status === 'error' ? regenJob.error : null,
-        portraitUrl: item.portrait ? `/api/image?id=${encodeURIComponent(item.id)}&which=portrait` : null,
-        tokenUrl: item.token ? `/api/image?id=${encodeURIComponent(item.id)}&which=token` : null,
+        portraitUrl: item.portrait
+            ? `/api/image?id=${encodeURIComponent(item.id)}&which=portrait&v=${fileVersion(portraitFile)}`
+            : null,
+        tokenUrl: item.token
+            ? `/api/image?id=${encodeURIComponent(item.id)}&which=token&v=${fileVersion(tokenFile)}`
+            : null,
+        // Full assembled prompt text, saved alongside the individual rolled traits -
+        // only present for entries written by a generate-npc.py new enough to record it.
+        portraitPrompt: item.portraitPrompt || null,
+        tokenPrompt: item.tokenPrompt || null,
     };
 }
 
@@ -721,6 +771,36 @@ async function handleApi(req, res, url) {
                 item = findItem(id); // re-read: copyIntoFoundry() moved its manifest entry
             }
             return { id, ...queueImport(item, { force }) };
+        });
+        return sendJson(res, 200, { results });
+    }
+
+    if (url.pathname === '/api/delete' && req.method === 'POST') {
+        const raw = await readBody(req);
+        let body;
+        try {
+            body = JSON.parse(raw || '{}');
+        } catch (err) {
+            return sendJson(res, 400, { error: err.message });
+        }
+        const ids = Array.isArray(body.ids) ? body.ids : [];
+        const results = ids.map((id) => {
+            const item = findItem(id);
+            if (!item) return { id, deleted: false, reason: 'unknown item' };
+            const job = jobsByItemId.get(id);
+            if (job && (job.status === 'queued' || job.status === 'sent')) {
+                return { id, deleted: false, reason: 'import is in progress - wait for it to finish or fail first' };
+            }
+            const regenJob = regenJobsByItemId.get(id);
+            if (regenJob?.status === 'running') {
+                return { id, deleted: false, reason: 'art is regenerating - try again once it finishes' };
+            }
+            try {
+                deleteItem(item);
+            } catch (err) {
+                return { id, deleted: false, reason: err.message };
+            }
+            return { id, deleted: true };
         });
         return sendJson(res, 200, { results });
     }

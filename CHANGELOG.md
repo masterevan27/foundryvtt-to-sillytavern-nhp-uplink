@@ -27,6 +27,20 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.3.0 - The Import GUI moves out
+
+The Import GUI is now its own project. Nothing about the module changes — the
+half that creates your Actors still ships here, and your existing settings keep
+working — but the server you run alongside it now installs from its own
+repository.
+
+- The Import GUI server has moved to
+  <https://github.com/masterevan27/lancer-npc-import-gui>. If you already have
+  it running from a clone of this repo, clone the new one and copy your
+  `config.json` across; nothing inside it needs to change.
+
+Link: [Lancer NPC Import GUI](https://github.com/masterevan27/lancer-npc-import-gui) - The Import GUI's new home
+
 ## 0.2.1 - Curating the generator's tables
 
 The Import GUI grows a Tables tab: the roll tables the NPC generator draws

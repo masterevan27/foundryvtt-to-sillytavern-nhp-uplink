@@ -157,7 +157,8 @@ step 2.
 
 ## Architecture
 
-Three pieces, because neither application can talk to the other directly.
+Three pieces carry the narration relay, because neither application can talk to
+the other directly:
 
 ```
 Foundry VTT (GM's browser)
@@ -170,6 +171,23 @@ foundryvtt-to-sillytavern-nhp-uplink   <- SillyTavern server plugin, port 5088
     |  POST /narration      (AI reply headed back to Foundry)
     |
 SillyTavern UI extension (browser) -> character card -> LLM
+```
+
+A fourth piece, the **Import GUI**, is optional and runs on its own track. It
+shares no endpoint with the relay above and does not need SillyTavern at all —
+see [§8](#8-import-gui-optional):
+
+```
+Foundry VTT (GM's browser)
+    |  GET  /importer/pending     (poll for NPCs the GM queued)
+    |  POST /importer/complete    (report the Actor it created)
+    |  POST /importer/reconcile   (report which imports still exist)
+    v
+import-gui-server   <- standalone local tool, port 5089
+    ^
+    |  same-origin /api/*
+    |
+the Import GUI page, served by that same process
 ```
 
 The server plugin deliberately runs **its own HTTP listener on port 5088** rather
@@ -292,7 +310,7 @@ Installing this way means no automatic updates.
 <summary>Why it lives in a second repository</summary>
 
 SillyTavern's installer only accepts a repo with `manifest.json` at the **root**,
-which this one cannot provide — the extension is one of three components here.
+which this one cannot provide — the extension is one of four components here.
 That repo is therefore a generated mirror, rewritten wholesale by this repo's
 release workflow from `st-ui-extension/sillytavern-foundryvtt-input/`. Nothing is
 developed there; open issues and pull requests against **this** repository.
@@ -928,9 +946,9 @@ git ls-tree -r v0.1.5 --name-only | grep release.yml
 
 Copyright (C) 2026 masterevan27.
 
-GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all three components in this
-repository: the Foundry module, the SillyTavern server plugin, and the
-SillyTavern UI extension.
+GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all four components in this
+repository: the Foundry module, the SillyTavern server plugin, the SillyTavern
+UI extension, and the Import GUI.
 
 The [Lancer // CompCon theme](https://github.com/masterevan27/sillytavern-lancer-ui-theme)
 is a separate project in its own repository, under its own copy of the same

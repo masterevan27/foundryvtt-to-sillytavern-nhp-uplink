@@ -1,8 +1,37 @@
 # NPC Tables Editor & Trait Import Presets — Design
 
-**Status:** Approved for planning
+**Status:** Shipped — but the preset format below is **superseded**. See the banner.
 **Repo:** `import-gui-server/` (Import GUI), reading/writing `npc-generator-tables.md` in the separate `Lancer-TTRPG-GM-Hub` repo
 **Covers:** items 13, 14, 15 from `.claude_to_do_list.md`
+
+> ## ⚠️ Superseded in part
+>
+> Everything here shipped, but the **preset file format and apply semantics
+> described below are no longer what the code does.** A follow-up round of
+> refinements (merged to `main` at `eb06a0a`) replaced them:
+>
+> - A preset no longer stores a `disabled` delta. It stores `selected` — one key
+>   for **every table** that existed in `npc-generator-tables.md` when the preset
+>   was saved, mapping to that table's full enabled set (with per-bullet roll
+>   weights). A table that had zero enabled bullets still gets an empty-array key.
+> - Applying a preset is a **whitelist**, not a one-way disable. Every table the
+>   preset *covers* is made to match it exactly — bullets it lists are enabled and
+>   re-weighted, and anything else currently enabled in that same table is
+>   disabled. A table with no key at all (it didn't exist when the preset was
+>   saved) is left completely untouched, which is what keeps an old preset safe
+>   to apply after new tables get added.
+> - This means the spec's rule that "a preset only ever *disables* bullets it
+>   names; applying one never re-enables anything it doesn't mention" is **no
+>   longer true**, and neither is the `{ "disabled": {...} }` JSON shape shown in
+>   the preset-file and `/api/presets/import` sections.
+> - There is no migration. An old-format file is rejected with `400` ("missing
+>   `selected`") by import and apply, and reported as `count: 0` by `listPresets`.
+> - Bullet **roll weights** (`- xN text`) are editable from the Tables tab, which
+>   this spec does not describe at all.
+>
+> Read `import-gui-server/lib/presets.js` and its tests for the format that is
+> actually implemented. Remaining parked issues live in
+> [`docs/known-issues.md`](../../known-issues.md).
 
 ## Summary
 

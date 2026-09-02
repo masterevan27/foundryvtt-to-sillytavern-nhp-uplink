@@ -319,7 +319,8 @@ developed there; open issues and pull requests against **this** repository.
 
 ### 4. AI GM character card
 
-Import `lancer-ai-gm.card.png` through SillyTavern's character panel and start
+Import [`assets/lancer-ai-gm.card.png`](assets/lancer-ai-gm.card.png) through
+SillyTavern's character panel and start
 a chat with **OMNINET//GM**. The card is a normal PNG with its data embedded in
 the image metadata, which is SillyTavern's native character format.
 

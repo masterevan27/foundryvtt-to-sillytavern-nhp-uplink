@@ -1,4 +1,42 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(/st-server-plugin/*/config.json)",
+      "Read(/import-gui-server/config.json)",
+      "Read(/import-gui-server/.imported.json)",
+      "Read(*.local.json)",
+      "Read(.env)",
+      "Read(.env.*)",
+
+      "Read(node_modules/**)",
+      "Read(package-lock.json)",
+      "Read(.npm/**)",
+      "Read(npm-debug.log*)",
+      "Read(yarn-error.log*)",
+      "Read(pnpm-debug.log*)",
+
+      "Read(*.log)",
+      "Read(*.pid)",
+      "Read(*.tmp)",
+      "Read(.cache/**)",
+      "Read(tmp/**)",
+
+      "Read(*.zip)",
+      "Read(dist/**)",
+      "Read(build/**)",
+      "Read(/foundry-module/foundryvtt-to-sillytavern-nhp-uplink/changelog.json)",
+
+      "Read(/examples/*.png)",
+      "Read(*.card.png)",
+      "Read(*.jpg)",
+      "Read(*.jpeg)",
+      "Read(*.gif)",
+      "Read(*.ico)",
+
+      "Read(.vscode/**)",
+      "Read(.idea/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

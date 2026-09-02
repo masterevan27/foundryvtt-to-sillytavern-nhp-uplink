@@ -2,6 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Complete. All seven tasks landed directly on
+`worktree-repo-hygiene-and-extraction` (commits `e549c6d`..`f65d389`) — the
+worktree this plan was executed from, not a new `repo-hygiene-and-ci` branch
+as Task 1 Step 1 specified. Two steps were never run: pushing the branch and
+confirming the CI run is green (Task 3 Step 7, Task 7 Step 8) — `gh` is not
+installed on this machine, so `test.yml` has never executed on GitHub
+Actions. Every other step below is checked off as actually done; a handful
+carry a parenthetical note where what happened differs from what was
+written.
+
 **Goal:** Make this repo tell the truth about itself — delete the status
 document that describes shipped work as unshipped, run the test suite in CI with
 a command that actually works, fix the README's architecture section, and clear
@@ -79,7 +89,9 @@ tables/presets design spec. There is nothing to rewrite — it just needs landin
 - Produces: `docs/known-issues.md` at the repo root of `docs/`. Task 2 links to
   it from `CLAUDE.md`; the extraction plan moves it to the new repo.
 
-- [ ] **Step 1: Create the working branch**
+- [ ] **Step 1: Create the working branch** *(not executed as written — the
+  branch already existed as `worktree-repo-hygiene-and-extraction`; all work
+  in this plan ran there instead of on a new `repo-hygiene-and-ci` branch)*
 
 ```bash
 git switch -c repo-hygiene-and-ci main
@@ -88,7 +100,7 @@ git log --oneline -1
 
 Expected: `80b457b docs: mark plan complete, restore dropped preview clause in README`
 
-- [ ] **Step 2: Confirm the branch really is a fast-forward before merging**
+- [x] **Step 2: Confirm the branch really is a fast-forward before merging**
 
 ```bash
 git rev-list --count "main..worktree-plan-cleanup"
@@ -98,7 +110,10 @@ git rev-list --count "worktree-plan-cleanup..main"
 Expected: `1` then `0`. If the second number is not `0`, stop — the branch has
 fallen behind and the rest of this task's assumptions no longer hold.
 
-- [ ] **Step 3: Merge it**
+- [x] **Step 3: Merge it** *(done, but as a normal merge, not `--ff-only` —
+  this worktree's HEAD was already one commit ahead of `main`, making a
+  fast-forward structurally impossible. Landed as merge commit `e549c6d`,
+  with parents `80b457b` and `13d9bb6`.)*
 
 ```bash
 git merge --ff-only worktree-plan-cleanup
@@ -106,7 +121,7 @@ git merge --ff-only worktree-plan-cleanup
 
 Expected: `Fast-forward`, 4 files changed, 81 insertions, 3979 deletions.
 
-- [ ] **Step 4: Verify the result**
+- [x] **Step 4: Verify the result**
 
 ```bash
 ls docs/superpowers/plans/
@@ -117,7 +132,7 @@ Expected: `plans/` now contains only this plan and the extraction plan (or is
 empty if you are running Task 1 before those files exist), and `known-issues.md`
 opens with `# Known Issues`.
 
-- [ ] **Step 5: No commit needed**
+- [x] **Step 5: No commit needed**
 
 The fast-forward moved the branch pointer; `13d9bb6` is already a commit. Verify
 with:
@@ -157,7 +172,7 @@ written below; the branch is retired in Task 7.
 - Produces: `CLAUDE.md` at the repo root. Task 3 keeps its test-command section
   in sync with the workflow; the extraction plan edits its component table.
 
-- [ ] **Step 1: Confirm the document is as wrong as the spec says**
+- [x] **Step 1: Confirm the document is as wrong as the spec says**
 
 ```bash
 grep -n "mid-development\|uncommitted, all local\|don't duplicate" claude_task_status.md
@@ -167,7 +182,7 @@ Expected: three hits, around lines 12, 17 and 14 — the claims quoted above. Th
 step exists so the deletion is made with the evidence in front of you rather
 than on this plan's say-so.
 
-- [ ] **Step 2: Write `CLAUDE.md`**
+- [x] **Step 2: Write `CLAUDE.md`**
 
 Create `CLAUDE.md` with exactly this content:
 
@@ -241,7 +256,7 @@ Read the section, route or function you need. `README.md` has a heading every
 scope cleanly.
 ````
 
-- [ ] **Step 3: Delete the status document**
+- [x] **Step 3: Delete the status document**
 
 ```bash
 git rm claude_task_status.md
@@ -249,7 +264,7 @@ git rm claude_task_status.md
 
 Expected: `rm 'claude_task_status.md'`
 
-- [ ] **Step 4: Verify no other file points at the deleted document**
+- [x] **Step 4: Verify no other file points at the deleted document**
 
 ```bash
 grep -rn "claude_task_status" --include=*.md --include=*.js --include=*.yml . | grep -v "^./docs/superpowers/"
@@ -259,7 +274,7 @@ Expected: no output. (Hits under `docs/superpowers/` are this plan and the spec
 describing the deletion, which is correct.) If a hit appears in `README.md` or a
 workflow, fix that reference before committing.
 
-- [ ] **Step 5: Verify every claim in the new file**
+- [x] **Step 5: Verify every claim in the new file**
 
 ```bash
 cd import-gui-server && node --test 2>&1 | tail -6
@@ -271,7 +286,7 @@ Expected: `pass 55` / `fail 0` from the first command, and the second shows both
 `MODULE_DIR: foundry-module/foundryvtt-to-sillytavern-nhp-uplink` and the
 `working-directory: ${{ env.MODULE_DIR }}` line that the zip step uses.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add CLAUDE.md claude_task_status.md
@@ -302,7 +317,7 @@ job, because each test file was given a distinct port.
 - Produces: a workflow named `Test` with one job, `import-gui-server`. The
   extraction plan moves this file, near-verbatim, into the new repo.
 
-- [ ] **Step 1: Prove the suite is green before changing anything**
+- [x] **Step 1: Prove the suite is green before changing anything**
 
 ```bash
 cd import-gui-server && node --test 2>&1 | tail -8
@@ -311,7 +326,7 @@ cd ..
 
 Expected: `tests 55`, `pass 55`, `fail 0`.
 
-- [ ] **Step 2: Write the failing test — break one assertion deliberately**
+- [x] **Step 2: Write the failing test — break one assertion deliberately**
 
 The thing under test here is the workflow, and what it must do is *fail when the
 suite fails*. Create a known-bad state first.
@@ -332,7 +347,7 @@ to:
 
 Do not commit this.
 
-- [ ] **Step 3: Run it to make sure it fails**
+- [x] **Step 3: Run it to make sure it fails**
 
 ```bash
 cd import-gui-server && node --test 2>&1 | tail -8
@@ -344,7 +359,7 @@ as `parseTableFile reads enabled, weighted, and disabled bullets`. If this still
 reports `fail 0`, you edited a line that is not executed — pick a different
 assertion and repeat.
 
-- [ ] **Step 4: Write the workflow**
+- [x] **Step 4: Write the workflow**
 
 Create `.github/workflows/test.yml` with exactly this content:
 
@@ -392,7 +407,7 @@ jobs:
         run: node --test
 ```
 
-- [ ] **Step 5: Revert the deliberate breakage and confirm green**
+- [x] **Step 5: Revert the deliberate breakage and confirm green**
 
 ```bash
 git checkout -- import-gui-server/test/tableBullets.test.js
@@ -403,14 +418,16 @@ cd ..
 Expected: `pass 55`, `fail 0`. The workflow runs this exact command, so a green
 local run and a green CI run now mean the same thing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .github/workflows/test.yml
 git commit -m "ci: run the import-gui-server suite on push and pull request"
 ```
 
-- [ ] **Step 7: Push the branch and confirm the run is green**
+- [ ] **Step 7: Push the branch and confirm the run is green** *(not
+  executed — `gh` is not installed on this machine and pushes are deferred to
+  the repo owner; `test.yml` has never run on GitHub Actions)*
 
 ```bash
 git push -u origin repo-hygiene-and-ci
@@ -444,7 +461,7 @@ a different track and shares no endpoint with it. It gets its own diagram.
   and `import-gui-server/server.js:1069-1103`.
 - Produces: nothing other tasks read.
 
-- [ ] **Step 1: Confirm the endpoints before drawing them**
+- [x] **Step 1: Confirm the endpoints before drawing them**
 
 ```bash
 grep -n "endpoint(\"/importer" foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/importer.js
@@ -455,7 +472,7 @@ Expected: three endpoints on each side, matching exactly —
 `/importer/pending` (GET), `/importer/complete` (POST),
 `/importer/reconcile` (POST).
 
-- [ ] **Step 2: Replace lines 158-173**
+- [x] **Step 2: Replace lines 158-173**
 
 Replace everything from `## Architecture` through the closing fence of the
 existing diagram with:
@@ -501,7 +518,7 @@ Leave the `<details>` block about the separate listener and the **Do not point
 Foundry at SillyTavern's web UI port** warning exactly as they are — they follow
 the diagram and are still correct.
 
-- [ ] **Step 3: Verify the anchor link resolves**
+- [x] **Step 3: Verify the anchor link resolves**
 
 ```bash
 grep -n "^### 8. Import GUI" README.md
@@ -510,7 +527,7 @@ grep -n "^### 8. Import GUI" README.md
 Expected: one hit. GitHub renders that heading with the anchor
 `#8-import-gui-optional`, which is what the new text links to.
 
-- [ ] **Step 4: Verify no stale count survives**
+- [x] **Step 4: Verify no stale count survives**
 
 ```bash
 grep -n "Three pieces\|three pieces\|Three shipped\|three components" README.md
@@ -519,7 +536,7 @@ grep -n "Three pieces\|three pieces\|Three shipped\|three components" README.md
 Expected: exactly one hit — the new `Three pieces carry the narration relay`
 line. Any other hit is a leftover claim that also needs updating.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add README.md
@@ -543,7 +560,7 @@ two-line change.
 - Consumes: nothing.
 - Produces: the `assets/` directory. Nothing else in this plan uses it.
 
-- [ ] **Step 1: Confirm it has exactly one reference**
+- [x] **Step 1: Confirm it has exactly one reference**
 
 ```bash
 grep -rn "lancer-ai-gm.card.png" --include=*.md --include=*.js --include=*.json --include=*.yml . | grep -v "^./docs/superpowers/"
@@ -553,14 +570,14 @@ Expected: exactly one hit, `README.md:304`. If `release.yml` or `module.json`
 turns up, stop — the file is a build input and moving it needs those updated
 too.
 
-- [ ] **Step 2: Move it**
+- [x] **Step 2: Move it**
 
 ```bash
 mkdir -p assets
 git mv lancer-ai-gm.card.png assets/lancer-ai-gm.card.png
 ```
 
-- [ ] **Step 3: Update the reference**
+- [x] **Step 3: Update the reference**
 
 In `README.md`, change line 304 from:
 
@@ -575,7 +592,7 @@ Import [`assets/lancer-ai-gm.card.png`](assets/lancer-ai-gm.card.png) through
 SillyTavern's character panel and start
 ```
 
-- [ ] **Step 4: Verify the file is where the README now says**
+- [x] **Step 4: Verify the file is where the README now says**
 
 ```bash
 ls -l assets/lancer-ai-gm.card.png
@@ -584,7 +601,7 @@ grep -n "assets/lancer-ai-gm.card.png" README.md
 
 Expected: a 45774-byte file, and one README hit at the line you just edited.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add README.md assets/lancer-ai-gm.card.png
@@ -613,7 +630,7 @@ and a plan document Task 1 deletes) would conflict for no benefit.
 - Consumes: `worktree-docs-catchup`'s version of `CHANGELOG.md`.
 - Produces: a `0.2.1` section that `tools/build-changelog.mjs` can compile.
 
-- [ ] **Step 1: Confirm `CHANGELOG.md` is the only file you need from that branch**
+- [x] **Step 1: Confirm `CHANGELOG.md` is the only file you need from that branch**
 
 ```bash
 git diff --stat "main..worktree-docs-catchup"
@@ -623,7 +640,7 @@ Expected: 4 files changed — `CHANGELOG.md`, `claude_task_status.md`, the
 refinements plan, and (from `main`'s side) nothing else. Only `CHANGELOG.md` is
 wanted.
 
-- [ ] **Step 2: Take just that file**
+- [x] **Step 2: Take just that file**
 
 ```bash
 git checkout worktree-docs-catchup -- CHANGELOG.md
@@ -632,7 +649,7 @@ git diff --stat HEAD -- CHANGELOG.md
 
 Expected: `1 file changed, 22 insertions(+)`.
 
-- [ ] **Step 3: Verify it compiles into the shipped changelog format**
+- [x] **Step 3: Verify it compiles into the shipped changelog format**
 
 ```bash
 node tools/build-changelog.mjs --out /tmp/cl.json --version 0.2.1 --repo-url https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink
@@ -651,7 +668,7 @@ it ships. The build script fills in today's date when run outside a release.
 
 On Windows, substitute `$env:TEMP\cl.json` for `/tmp/cl.json` in both commands.
 
-- [ ] **Step 4: Verify the section separator survived**
+- [x] **Step 4: Verify the section separator survived**
 
 ```bash
 grep -n -B2 "^## 0.2.0 - Import GUI" CHANGELOG.md
@@ -661,7 +678,7 @@ Expected: a blank line immediately above `## 0.2.0`. That blank line is the
 whole content of commit `63d3217`; without it the two sections run together in
 the rendered dialog.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CHANGELOG.md
@@ -702,7 +719,7 @@ and backdrop fixes — `generate-npc.py` work belonging to the
   be committed before any branch here is deleted.
 - Produces: nothing later tasks read.
 
-- [ ] **Step 1: Re-measure every branch before deleting anything**
+- [x] **Step 1: Re-measure every branch before deleting anything**
 
 ```bash
 for b in worktree-plan-cleanup worktree-docs-catchup worktree-add-claude-md-read-guidance worktree-claudeignore-to-deny-rules; do
@@ -716,7 +733,7 @@ The other three read as in the table above. Deleting a branch is not reversible
 from the reflog forever — if any number differs from the table, investigate
 before continuing.
 
-- [ ] **Step 2: Save the two 12-behind branches' unique work as patches**
+- [x] **Step 2: Save the two 12-behind branches' unique work as patches**
 
 ```bash
 mkdir -p "$HOME/uplink-retired-branches"
@@ -728,7 +745,11 @@ ls "$HOME/uplink-retired-branches"
 Expected: two `.patch` files. This is cheap insurance — the next step throws the
 branches away.
 
-- [ ] **Step 3: Decide the `.claude/settings.json` deny rules, then act**
+- [x] **Step 3: Decide the `.claude/settings.json` deny rules, then act**
+  *(resolved as option (a), keep it. The commit that landed it also dropped
+  the now-dead `.claudeignore` line from `.gitignore` — Claude Code never
+  actually read that file, so the deny rules are what enforces the ignore
+  list now.)*
 
 `5ab7445` is the only commit here whose content is not superseded. Read it:
 
@@ -755,7 +776,11 @@ optional.
 
 **(b) Drop it** — take no action; the patch saved in Step 2 is the record.
 
-- [ ] **Step 4: Remove the worktrees**
+- [x] **Step 4: Remove the worktrees** *(done in git — all four deregistered
+  from `git worktree list` — but three of the four on-disk directories could
+  not be deleted because another process held them open. They are now empty
+  and unregistered rather than removed from disk; that is the accepted
+  outcome, not a failure of this step.)*
 
 ```bash
 git worktree remove --force .claude/worktrees/plan-cleanup
@@ -768,7 +793,7 @@ git worktree list
 Expected: `git worktree list` shows the main checkout and whichever worktree
 this plan is being executed from — nothing else.
 
-- [ ] **Step 5: Delete the branches**
+- [x] **Step 5: Delete the branches**
 
 ```bash
 git branch -D worktree-plan-cleanup worktree-docs-catchup worktree-add-claude-md-read-guidance worktree-claudeignore-to-deny-rules
@@ -778,7 +803,7 @@ git branch
 Expected: `main`, your `repo-hygiene-and-ci` branch, and nothing beginning
 `worktree-` except the one you are standing in.
 
-- [ ] **Step 6: Relocate the misfiled to-do list**
+- [x] **Step 6: Relocate the misfiled to-do list**
 
 This file is a to-do list someone wrote. Move it; do not delete it.
 
@@ -798,7 +823,7 @@ If `Lancer-TTRPG-GM-Hub` has been cloned locally by the time you run this, move
 it into that repo's root instead. Either way it stays gitignored here and needs
 no commit.
 
-- [ ] **Step 7: Verify the working tree is clean**
+- [x] **Step 7: Verify the working tree is clean**
 
 ```bash
 git status --porcelain
@@ -808,7 +833,8 @@ git status --porcelain --ignored | head
 Expected: the first command prints nothing. The second no longer lists
 `.claude_to_do_list.md`.
 
-- [ ] **Step 8: Push**
+- [ ] **Step 8: Push** *(not executed, same reason as Task 3 Step 7 — `gh` is
+  not installed on this machine and pushes are deferred to the repo owner)*
 
 ```bash
 git push
@@ -823,15 +849,30 @@ Expected: the push succeeds and the newest `Test` run is `completed success`.
 
 At this point:
 
-- `docs/` holds `known-issues.md` and the specs — documents written for people,
-  not 160KB of finished plans.
+- `docs/superpowers/plans/` no longer holds documents that describe shipped
+  work as unshipped: the two finished tables/presets plans (3,978 lines) are
+  gone, and the issues they still tracked live in `docs/known-issues.md`. It
+  still holds two plans, both legitimately live — this one (now marked
+  complete above) and the not-yet-started extraction plan.
 - `CLAUDE.md` replaces a status document that described shipped work as
   unshipped, and carries the nesting warning and the working test command.
-- Every push and PR runs `pass 55` across Node 20, 22 and 24.
+- `.github/workflows/test.yml` is written and committed to run `pass 55`
+  across Node 20, 22 and 24 on every push and PR — but that has never been
+  observed to actually happen: the branch was never pushed (Task 3 Step 7,
+  Task 7 Step 8), so this is configured, not verified, and GitHub Actions has
+  never seen the workflow run.
 - The README's architecture section describes four components.
-- The repo root holds no loose assets, and `git worktree list` is clean.
+- The repo root holds no loose assets. `git worktree list` needed one further
+  cleanup beyond this plan's own Task 7: `worktree-repo-cleanup-plan` (the
+  worktree that authored these plan documents, commit `00c800d`, merged into
+  this branch back in Task 1's `e549c6d`) was never in Task 7's table of four
+  and so sat unregistered-but-present until a whole-branch review caught it
+  and it was retired separately.
 
-`main` still holds 12 unpushed commits plus this branch. Merging
-`repo-hygiene-and-ci` and pushing `main` is the repo owner's call.
+`main` is unchanged at `80b457b`. All seven tasks landed directly on
+`worktree-repo-hygiene-and-extraction` rather than a separate
+`repo-hygiene-and-ci` branch (see Task 1 Step 1's note). Merging this
+worktree's branch into `main` and pushing it — which also lets `test.yml` run
+for the first time — is the repo owner's call.
 
 **Next:** `docs/superpowers/plans/2026-09-01-extract-import-gui-server.md`.

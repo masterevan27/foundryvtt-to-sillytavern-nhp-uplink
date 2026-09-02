@@ -58,7 +58,7 @@ Several files here are large enough that reading them whole is wasteful:
 
 | File | Size |
 |---|---|
-| `README.md` | ~940 lines |
+| `README.md` | ~960 lines |
 | `import-gui-server/public/app.js` | ~49KB |
 | `import-gui-server/server.js` | ~46KB |
 

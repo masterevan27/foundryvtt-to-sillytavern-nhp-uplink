@@ -1,6 +1,10 @@
 # Repo Structure Audit — Design
 
-**Status:** Approved for planning
+**Status:** Split outcome. Findings 1-5 (the hygiene plan) are fixed, landed on
+`worktree-repo-hygiene-and-extraction`. Finding 6 — the Import GUI extraction —
+has **not** been started; "The Import GUI's home" section, success criterion 6,
+and everything about `lancer-npc-import-gui` below remain live, outstanding
+work. See the note at the end of the Summary.
 **Repo:** this one, root-level — every component is in scope
 **Source:** the read-only audit run on 2026-09-01 (classified a *spike*: its
 output was an answer, not code). This document turns that answer into a spec so
@@ -33,6 +37,16 @@ The repo has accumulated four kinds of drift since the Import GUI shipped:
 
 Separately, the audit asked whether `import-gui-server/` belongs in this repo at
 all. It does not — see [The Import GUI's home](#the-import-guis-home).
+
+**Update (this branch, `worktree-repo-hygiene-and-extraction`):** findings 1-5
+above are fixed by the hygiene plan
+(`docs/superpowers/plans/2026-09-01-repo-hygiene-and-ci.md`, now marked
+complete) — the false status doc is gone, the suite runs in CI, the README's
+architecture section covers all four components, the changelog has its
+`0.2.1` section, and the loose worktrees/PNG are cleared. The extraction below
+is untouched: `import-gui-server/` still lives in this repo, and everything
+about `lancer-npc-import-gui` and "The Import GUI's home" remains outstanding
+work for `docs/superpowers/plans/2026-09-01-extract-import-gui-server.md`.
 
 ## Verified facts
 

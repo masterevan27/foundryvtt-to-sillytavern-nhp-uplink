@@ -54,7 +54,7 @@ node --test "import-gui-server/test/*.test.js" "import-gui-server/test/**/*.test
 - Consumes: the existing `traitState.sort`/`compareTraitCandidates()`/`renderTraits()` machinery (unchanged, no other task touches this).
 - Produces: nothing new — this only changes a default value.
 
-- [ ] **Step 1: Change the default-selected option in `index.html`**
+- [x] **Step 1: Change the default-selected option in `index.html`**
 
 Find:
 
@@ -82,7 +82,7 @@ Replace with:
     </label>
 ```
 
-- [ ] **Step 2: Change the default in `app.js`'s `traitState`**
+- [x] **Step 2: Change the default in `app.js`'s `traitState`**
 
 Find:
 
@@ -110,7 +110,7 @@ const traitState = {
 };
 ```
 
-- [ ] **Step 3: Verify manually against a fixture server**
+- [x] **Step 3: Verify manually against a fixture server**
 
 There's no browser test tooling in this repo, so verify by hand against a real server pointed at a throwaway fixture — never the real `config.json`/`npc-generator-tables.md`.
 
@@ -152,7 +152,7 @@ Stop the server (Ctrl+C) and remove `$env:IMPORT_GUI_CONFIG` when done:
 Remove-Item Env:\IMPORT_GUI_CONFIG
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add import-gui-server/public/index.html import-gui-server/public/app.js
@@ -176,7 +176,7 @@ git commit -m "feat: default the Trait Imports sort to Table"
 
   Both consumed by Task 3's route and Task 7's preset-apply route.
 
-- [ ] **Step 1: Write the failing pure-logic tests**
+- [x] **Step 1: Write the failing pure-logic tests**
 
 In `import-gui-server/test/tableBullets.test.js`, find the top-of-file require:
 
@@ -235,13 +235,13 @@ test('setBulletWeightInText returns ok:false for a bullet that does not exist un
 
 (`SAMPLE` is the constant already defined near the top of this file by the base feature's tests — it has `'nondescript grey work coveralls'` at weight 4 via an `x4` prefix, which is what the no-op test relies on.)
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/tableBullets.test.js`
 
 Expected: FAIL — `setBulletWeightInText is not a function`.
 
-- [ ] **Step 3: Implement `setBulletWeightInText`/`setBulletWeightOnDisk`**
+- [x] **Step 3: Implement `setBulletWeightInText`/`setBulletWeightOnDisk`**
 
 In `import-gui-server/lib/tableBullets.js`, find `toggleBulletInText`'s closing brace and the `readTables` function after it:
 
@@ -369,13 +369,13 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/tableBullets.test.js`
 
 Expected: PASS (13 tests, 0 failures — 8 from the base feature plus 5 new).
 
-- [ ] **Step 5: Add the disk-wrapper tests**
+- [x] **Step 5: Add the disk-wrapper tests**
 
 In `import-gui-server/test/tableBullets.fs.test.js`, find the require line:
 
@@ -411,13 +411,13 @@ test('setBulletWeightOnDisk leaves the file byte-for-byte untouched when the bul
 });
 ```
 
-- [ ] **Step 6: Run it and confirm it passes**
+- [x] **Step 6: Run it and confirm it passes**
 
 Run: `node --test import-gui-server/test/tableBullets.fs.test.js`
 
 Expected: PASS (5 tests, 0 failures) immediately, since `setBulletWeightOnDisk` already exists from Step 3. If it fails, the bug is in Step 3's implementation.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add import-gui-server/lib/tableBullets.js import-gui-server/test/tableBullets.test.js import-gui-server/test/tableBullets.fs.test.js
@@ -438,7 +438,7 @@ git commit -m "feat: add per-bullet weight editing to lib/tableBullets.js"
 
   Consumed by the client in Task 4 and directly by `lib` calls in Task 7's preset-apply route (not over HTTP — same pattern `toggleBulletOnDisk` already uses from the apply route).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `import-gui-server/test/api.tableBullets.test.js`:
 
@@ -486,13 +486,13 @@ test('POST /api/table-bullets/set-weight returns 400 for a bullet that does not 
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/api.tableBullets.test.js`
 
 Expected: FAIL — all three get 404s (no such route yet).
 
-- [ ] **Step 3: Add the route**
+- [x] **Step 3: Add the route**
 
 In `import-gui-server/server.js`, find the `/api/table-bullets/toggle` route and the `/api/presets` GET route right after it:
 
@@ -558,19 +558,19 @@ Add the new route directly between them:
     if (url.pathname === '/api/presets' && req.method === 'GET') {
 ```
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/api.tableBullets.test.js`
 
 Expected: PASS (7 tests, 0 failures — 4 from the base feature plus 3 new).
 
-- [ ] **Step 5: Run the full suite to confirm nothing else broke**
+- [x] **Step 5: Run the full suite to confirm nothing else broke**
 
 Run: `node --test "import-gui-server/test/*.test.js" "import-gui-server/test/**/*.test.js"`
 
 Expected: PASS, everything green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/server.js import-gui-server/test/api.tableBullets.test.js
@@ -590,7 +590,7 @@ git commit -m "feat: add POST /api/table-bullets/set-weight"
 - Consumes: `POST /api/table-bullets/set-weight` (Task 3); `tablesState`, `elTables`, `renderTableBullets()` (all pre-existing).
 - Produces: nothing new for later tasks — this is the leaf UI piece for item 2.
 
-- [ ] **Step 1: Replace the static weight badge with an editable number input**
+- [x] **Step 1: Replace the static weight badge with an editable number input**
 
 In `import-gui-server/public/app.js`, find `renderTableBullets()`:
 
@@ -659,7 +659,7 @@ function renderTableBullets() {
 }
 ```
 
-- [ ] **Step 2: Add the `setBulletWeight` handler**
+- [x] **Step 2: Add the `setBulletWeight` handler**
 
 Find `toggleBullet()`:
 
@@ -712,7 +712,7 @@ async function setBulletWeight(tableName, bullet, inputEl) {
 }
 ```
 
-- [ ] **Step 3: Restyle the weight control in `style.css`**
+- [x] **Step 3: Restyle the weight control in `style.css`**
 
 Find:
 
@@ -741,7 +741,7 @@ Replace with:
 .table-bullet-row .weight-input:disabled { opacity: 0.5; }
 ```
 
-- [ ] **Step 4: Verify manually against a fixture server**
+- [x] **Step 4: Verify manually against a fixture server**
 
 In PowerShell, from `import-gui-server/`:
 
@@ -773,7 +773,7 @@ Stop the server (Ctrl+C) and remove `$env:IMPORT_GUI_CONFIG` when done:
 Remove-Item Env:\IMPORT_GUI_CONFIG
 ```
 
-- [ ] **Step 5: Add a README mention**
+- [x] **Step 5: Add a README mention**
 
 In `README.md`, find:
 
@@ -798,7 +798,7 @@ Replace with:
   preview exactly what it would change, and apply it.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/public/app.js import-gui-server/public/style.css README.md
@@ -815,7 +815,7 @@ git commit -m "feat: add editable per-bullet weight input to the Tables tab"
 
 **Interfaces:** none — purely visual, no data or API changes.
 
-- [ ] **Step 1: Add a class to the download link**
+- [x] **Step 1: Add a class to the download link**
 
 In `import-gui-server/public/app.js`, find `renderPresetList()`'s download-link block:
 
@@ -838,7 +838,7 @@ Replace with:
     row.appendChild(download);
 ```
 
-- [ ] **Step 2: Style it as a readable chip instead of the browser's default link color**
+- [x] **Step 2: Style it as a readable chip instead of the browser's default link color**
 
 In `import-gui-server/public/style.css`, find:
 
@@ -865,11 +865,11 @@ Replace with:
 .preset-download:visited { color: #8fb3ff; }
 ```
 
-- [ ] **Step 3: Verify manually against a fixture server**
+- [x] **Step 3: Verify manually against a fixture server**
 
 Reuse Task 4's fixture server (same `npc-generator-tables.md`/config pattern), or start a fresh one on a free port. With the server running, open the **Tables** tab, click **Save current as preset…**, name it anything, and confirm the resulting **Download** link now renders as a visible light-blue chip with a border against the dark row background, instead of the browser's default dark-blue/purple link color.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add import-gui-server/public/app.js import-gui-server/public/style.css
@@ -893,7 +893,7 @@ git commit -m "fix: raise contrast on the preset Download link in dark mode"
 
   Both consumed by Task 7's routes. This replaces `snapshotDisabled`, which is removed.
 
-- [ ] **Step 1: Write the new failing tests**
+- [x] **Step 1: Write the new failing tests**
 
 Replace the entire contents of `import-gui-server/test/presets.test.js` with:
 
@@ -997,13 +997,13 @@ test('diffPresetAgainstTables leaves a table with no key in the preset completel
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/presets.test.js`
 
 Expected: FAIL — `snapshotSelected is not a function`.
 
-- [ ] **Step 3: Rewrite the implementation**
+- [x] **Step 3: Rewrite the implementation**
 
 Replace the entire contents of `import-gui-server/lib/presets.js` with:
 
@@ -1127,13 +1127,13 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/presets.test.js`
 
 Expected: PASS (9 tests, 0 failures).
 
-- [ ] **Step 5: Update the disk-wrapper tests for the new shape**
+- [x] **Step 5: Update the disk-wrapper tests for the new shape**
 
 Replace the entire contents of `import-gui-server/test/presets.fs.test.js` with:
 
@@ -1212,13 +1212,13 @@ test('readPreset returns null for an unknown slug', () => {
 });
 ```
 
-- [ ] **Step 6: Run it and confirm it passes**
+- [x] **Step 6: Run it and confirm it passes**
 
 Run: `node --test import-gui-server/test/presets.fs.test.js`
 
 Expected: PASS (6 tests, 0 failures) immediately, since these functions' signatures didn't change — only `listPresets`'s `count` computation did, in Step 3. If it fails, the bug is there.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add import-gui-server/lib/presets.js import-gui-server/test/presets.test.js import-gui-server/test/presets.fs.test.js
@@ -1237,7 +1237,7 @@ git commit -m "feat: snapshot every table's full selected set in presets, with a
 - Consumes: `tableBullets.readTables`, `tableBullets.toggleBulletOnDisk`, `tableBullets.setBulletWeightOnDisk` (Task 2); `presets.snapshotSelected`, `presets.diffPresetAgainstTables` (Task 6).
 - Produces: the same five preset endpoints as the base feature, with `disabled` replaced by `selected` in every request/response body, and `apply` now able to enable/reweight as well as disable. Consumed by the client in Task 8.
 
-- [ ] **Step 1: Write the new failing tests**
+- [x] **Step 1: Write the new failing tests**
 
 Replace the entire contents of `import-gui-server/test/api.presets.test.js` with:
 
@@ -1441,13 +1441,13 @@ test('POST /api/presets/delete returns 404 for an unknown slug', async (t) => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `node --test import-gui-server/test/api.presets.test.js`
 
 Expected: FAIL — the save/import/apply tests all fail their `assert.deepEqual`/`assert.equal` checks against `selected`, since the routes still read/write `disabled`.
 
-- [ ] **Step 3: Update the routes**
+- [x] **Step 3: Update the routes**
 
 In `import-gui-server/server.js`, find the `PRESETS_DIR` comment:
 
@@ -1571,19 +1571,19 @@ Replace with:
     }
 ```
 
-- [ ] **Step 4: Run it again and confirm it passes**
+- [x] **Step 4: Run it again and confirm it passes**
 
 Run: `node --test import-gui-server/test/api.presets.test.js`
 
 Expected: PASS (9 tests, 0 failures).
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `node --test "import-gui-server/test/*.test.js" "import-gui-server/test/**/*.test.js"`
 
 Expected: PASS, everything green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add import-gui-server/server.js import-gui-server/test/api.presets.test.js
@@ -1602,7 +1602,7 @@ git commit -m "feat: switch preset routes to the full selected-set format and wh
 - Consumes: the new `{ willEnable, willDisable, willReweight, alreadyMatching, notFound }` shape from `POST /api/presets/import`/`POST /api/presets/apply` (Task 7).
 - Produces: nothing new for later tasks — this is the leaf UI piece for item 4.
 
-- [ ] **Step 1: Update `renderPresetPreview()`**
+- [x] **Step 1: Update `renderPresetPreview()`**
 
 In `import-gui-server/public/app.js`, find:
 
@@ -1662,7 +1662,7 @@ function renderPresetPreview(diff) {
 }
 ```
 
-- [ ] **Step 2: Verify manually against a fixture server**
+- [x] **Step 2: Verify manually against a fixture server**
 
 In PowerShell, from `import-gui-server/`:
 
@@ -1692,7 +1692,7 @@ Stop the server (Ctrl+C) and remove `$env:IMPORT_GUI_CONFIG` when done:
 Remove-Item Env:\IMPORT_GUI_CONFIG
 ```
 
-- [ ] **Step 3: Update the README's preset description**
+- [x] **Step 3: Update the README's preset description**
 
 In `README.md`, find (this is the text left by Task 4's Step 5):
 
@@ -1720,7 +1720,7 @@ Replace with:
   even after you add new bullets later.
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add import-gui-server/public/app.js README.md
@@ -1738,3 +1738,23 @@ node --test "import-gui-server/test/*.test.js" "import-gui-server/test/**/*.test
 ```
 
 Expected: every test across every file passes — this covers Tasks 1–3 and 5–7's server/lib changes end-to-end (item 3 has no automated test, being CSS-only). Tasks 1, 4, 5, and 8's client-side pieces were verified manually per their own steps, since no browser test tooling exists in this repo yet.
+
+---
+
+## Status: shipped
+
+All 8 tasks executed via `superpowers:subagent-driven-development`, each with its own passing task review, then a final whole-branch review (branch `tables-presets-refinements`, merged to `main` at `eb06a0a`). 54/54 tests pass on `main`.
+
+The final review found and fixed one thing the plan's tasks didn't anticipate:
+
+- **`server.js`'s `/api/presets/apply` route passed a preset-supplied `weight` straight to `setBulletWeightOnDisk` with none of Task 3's route-level validation.** An imported preset is untrusted input by design (the whole point of presets is sharing them), and a malformed `weight` (`-2`, `1.5`, `null`) got absorbed into the bullet's *text* on disk instead of being rejected — silently renaming the bullet with no error surfaced. Fixed in `eb06a0a` by moving the `Number.isInteger(weight) && weight >= 1` guard into `setBulletWeightInText` itself (`lib/tableBullets.js`), so every caller is protected the same way, not just the direct route.
+- A related bug surfaced during that fix: `diffPresetAgainstTables` (`lib/presets.js`) used `Map.get(text) === undefined` as its "not selected" sentinel, which also matched a preset entry that's present but omits `weight` — silently disabling a bullet the preset meant to keep. Fixed in the same commit by checking `selected.has(bullet.text)` instead.
+
+Deferred (parked, not blocking, tracked only here — no ticket system in this repo):
+1. The apply route's write loops discard `{ok:false}` from `toggleBulletOnDisk`/`setBulletWeightOnDisk`, so a rejected write (e.g. the weight guard above tripping) is silently swallowed rather than surfaced in the response.
+2. Duplicate bullet text within one table makes the diff and the actual first-line-only apply disagree (pre-existing `toggleBulletInText` behavior, newly surfaced by whitelist semantics).
+3. Apply does one full read+parse+write per changed bullet — non-atomic, O(n) per bullet; fine for a local single-user tool, not great at scale.
+4. `docs/superpowers/specs/2026-09-01-npc-tables-editor-and-presets-design.md` still documents the superseded `disabled`-only preset format with nothing marking it superseded.
+5. No test exercises the "no migration" substitute this plan's Global Constraints promised (400 on a `selected`-less body; `listPresets` reporting `count: 0` for one).
+6. The preset row's `(N)` count changed meaning (disabled→selected count) with no label distinguishing it.
+7. The Tables tab's weight input fires one `POST` per spinner click/arrow press rather than debouncing or committing on blur.

@@ -20,8 +20,9 @@
 /**
  * Generated-content importer.
  *
- * The companion half of ../../../import-gui-server: a GM picks NPCs (and,
- * eventually, other generated content) to import in that standalone page,
+ * The companion half of the Lancer NPC Import GUI, which lives in its own repo
+ * at https://github.com/masterevan27/lancer-npc-import-gui: a GM picks NPCs
+ * (and, eventually, other generated content) to import in that standalone page,
  * and this script is what actually turns a selection into Actors, since
  * Foundry has no external API that could do it from outside the client.
  *
@@ -31,7 +32,7 @@
  * stance.
  *
  * Import jobs carry image paths already relative to Foundry's Data/
- * directory (import-gui-server resolves that; see its config.foundryDataRoot),
+ * directory (that server resolves it; see its config.foundryDataRoot),
  * so creating the Actor is just Actor.create() with img/token texture set to
  * those paths directly - no file transfer involved.
  *
@@ -41,6 +42,10 @@
  * on every poll (reconcile), so deleting an Actor in Foundry makes that item
  * importable again on the next tick, and a fresh machine with no local state
  * still sees the correct picture the first time it connects.
+ *
+ * The three /importer/* endpoints below are a CROSS-REPO contract now. See
+ * docs/foundry-importer-contract.md before changing any of them: the server
+ * side ships separately, and a released module.zip cannot be updated in step.
  */
 
 const MOD = "foundryvtt-to-sillytavern-nhp-uplink";
@@ -60,13 +65,13 @@ const IMPORTER_SETTINGS = {
     type: String,
     default: "http://127.0.0.1:5089",
     name: "Import GUI server URL",
-    hint: "Base URL of the import-gui-server standalone tool.",
+    hint: "Base URL of the Lancer NPC Import GUI (github.com/masterevan27/lancer-npc-import-gui).",
   },
   importerSecret: {
     type: String,
     default: "",
     name: "Import GUI shared secret",
-    hint: "Must match the secret in import-gui-server's config.json. Leave blank to disable auth.",
+    hint: "Must match the secret in the Import GUI's config.json. Leave blank to disable auth.",
   },
   importerPollSeconds: {
     type: Number,

@@ -27,6 +27,28 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.2.1 - Curating the generator's tables
+
+The Import GUI grows a Tables tab: the roll tables the NPC generator draws
+from are now something you tune from the browser instead of hand-editing
+markdown, and a selection you like can be saved and handed to someone else.
+
+- **Tables** lists every bullet in every generator table. Switch off the
+  ones you never want rolled - they're set aside rather than deleted, so
+  you can switch them back on later - and set any bullet's roll weight to
+  make it come up more often.
+- Save the whole selection, weights and all, as a named preset. Download
+  it, send it to another GM, and they can import it into their own copy:
+  they see exactly what it would change before anything is written, then
+  apply it. A preset only ever touches the tables it covers, so an older
+  one stays safe to apply after new tables have been added.
+- **Trait Imports** now sorts by table out of the box, and can be sorted
+  by newest or oldest instead.
+- Fixed: the preset **Download** link was nearly unreadable against the
+  dark theme.
+- Fixed: typing a nonsense roll weight could mangle the bullet it was
+  attached to; it's now refused outright and the table is left alone.
+
 ## 0.2.0 - Import GUI
 _2026-09-01_
 

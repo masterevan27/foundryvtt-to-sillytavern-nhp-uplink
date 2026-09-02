@@ -122,3 +122,10 @@ test('setBulletWeightInText returns ok:false for a bullet that does not exist un
     assert.equal(result.ok, false);
     assert.match(result.error, /no bullet matching/);
 });
+
+test('setBulletWeightInText rejects a weight that is not a positive integer', () => {
+    for (const badWeight of [-2, 1.5, 0]) {
+        const result = setBulletWeightInText(SAMPLE, 'Gear', 'nothing at all, hands loose and empty', badWeight);
+        assert.equal(result.ok, false);
+    }
+});

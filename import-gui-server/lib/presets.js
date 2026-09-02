@@ -51,11 +51,13 @@ function diffPresetAgainstTables(presetSelected, parsedTables) {
             if (!bullets.some((b) => b.text === text)) notFound.push({ table, text });
         }
         for (const bullet of bullets) {
-            const wantWeight = selected.get(bullet.text);
-            if (wantWeight === undefined) {
+            if (!selected.has(bullet.text)) {
                 if (bullet.enabled) willDisable.push({ table, text: bullet.text });
                 else alreadyMatching.push({ table, text: bullet.text });
-            } else if (!bullet.enabled) {
+                continue;
+            }
+            const wantWeight = selected.get(bullet.text) ?? 1;
+            if (!bullet.enabled) {
                 willEnable.push({ table, text: bullet.text, weight: wantWeight });
             } else if (bullet.weight !== wantWeight) {
                 willReweight.push({ table, text: bullet.text, weight: wantWeight });

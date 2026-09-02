@@ -82,6 +82,9 @@ function formatRaw(weight, text) {
 }
 
 function setBulletWeightInText(fileText, tableName, bulletText, weight) {
+    if (!Number.isInteger(weight) || weight < 1) {
+        return { ok: false, error: 'weight must be an integer >= 1' };
+    }
     const lines = fileText.split('\n');
     let inTarget = false;
     for (let i = 0; i < lines.length; i++) {

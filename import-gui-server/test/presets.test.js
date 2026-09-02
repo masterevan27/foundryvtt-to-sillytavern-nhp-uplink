@@ -84,6 +84,16 @@ test('diffPresetAgainstTables reports every entry notFound, and touches nothing,
     assert.deepEqual(diff.willDisable, []);
 });
 
+test('diffPresetAgainstTables treats a selected entry with a missing weight as weight 1, not as unselected', () => {
+    const parsed = [{ name: 'Outfit', bullets: [
+        { text: 'a jacket', weight: 1, enabled: true },
+    ] }];
+    const preset = { Outfit: [{ text: 'a jacket' }] }; // no weight field at all
+    const diff = diffPresetAgainstTables(preset, parsed);
+    assert.deepEqual(diff.alreadyMatching, [{ table: 'Outfit', text: 'a jacket' }]);
+    assert.deepEqual(diff.willDisable, []);
+});
+
 test('diffPresetAgainstTables leaves a table with no key in the preset completely untouched', () => {
     const parsed = [
         { name: 'Outfit', bullets: [{ text: 'a jacket', weight: 1, enabled: true }] },

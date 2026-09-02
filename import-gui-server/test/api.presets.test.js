@@ -172,6 +172,35 @@ test('POST /api/presets/apply disables an enabled bullet the preset does not sel
     assert.equal(gear.bullets[0].enabled, true, 'Gear was not covered by this preset and must stay untouched');
 });
 
+test('POST /api/presets/apply rejects a hostile weight instead of corrupting the tables file', async (t) => {
+    const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5198 });
+    t.after(() => server.stop());
+
+    const before = await (await fetch(`${server.baseUrl}/api/table-bullets`)).json();
+
+    const preset = {
+        name: 'Hostile',
+        created: '2026-01-01T00:00:00.000Z',
+        selected: {
+            Outfit: [
+                { text: 'a heavy work jacket over a stained undersuit || civ', weight: -2 },
+                // Also select the tee at its current state, so the only thing this
+                // preset would change is the jacket's weight - keeping the diff
+                // isolated to the hostile value instead of also disabling the tee.
+                { text: 'a graffiti-tagged cropped t-shirt and cut-off shorts || civ', weight: 1 },
+            ],
+        },
+    };
+    await fetch(`${server.baseUrl}/api/presets/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preset),
+    });
+
+    const after = await (await fetch(`${server.baseUrl}/api/table-bullets`)).json();
+    const outfitBefore = before.tables.find((t) => t.name === 'Outfit');
+    const outfitAfter = after.tables.find((t) => t.name === 'Outfit');
+    assert.deepEqual(outfitAfter, outfitBefore, 'a hostile weight must not change any bullet text or weight on disk');
+});
+
 test('POST /api/presets/delete removes a saved preset', async (t) => {
     const server = await startTestServer({ tablesText: TABLES_FIXTURE, port: 5198 });
     t.after(() => server.stop());

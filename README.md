@@ -183,7 +183,7 @@ Foundry VTT (GM's browser)
     |  POST /importer/complete    (report the Actor it created)
     |  POST /importer/reconcile   (report which imports still exist)
     v
-import-gui-server   <- standalone local tool, port 5089
+Import GUI server   <- standalone local tool, own repo, port 5089
     ^
     |  same-origin /api/*
     |
@@ -398,93 +398,24 @@ screenshots are in that repository's README.
 
 ### 8. Import GUI (optional)
 
-Lets a GM browse NPCs rolled by a companion generator script (currently
-`generate-npc.py` in the
-[Lancer TTRPG GM Hub](https://github.com/masterevan27/Lancer-TTRPG-GM-Hub),
-which renders a portrait/token pair per NPC), pick which ones become
-Actors, roll brand-new ones, and curate the generator's own tables —
-instead of hand-copying files through Foundry's file picker and
-hand-editing table markdown. It has no dependency on the narration relay
-above and works whether or not you use SillyTavern at all.
+The **Lancer NPC Import GUI** lets a GM browse NPCs rolled by a companion
+generator script, pick which ones become Foundry Actors, roll brand-new ones,
+and curate the generator's own roll tables — instead of hand-copying files
+through Foundry's file picker and hand-editing table markdown.
 
-Two halves, same shape as the rest of this project — a standalone local
-server, and a piece of the Foundry module that polls it:
+It lives in its own repository, with its own install and configuration
+instructions:
 
-```bash
-cd import-gui-server
-cp config.example.json config.json
-```
+**<https://github.com/masterevan27/lancer-npc-import-gui>**
 
-Edit `config.json`:
+Only the Foundry half ships here, in this module. Once that server is running,
+set **Import GUI server URL** (and **Import GUI shared secret**, if you set one)
+under **Game Settings → Configure Settings → FoundryVTT to SillyTavern NHP
+Uplink**.
 
-```json
-{
-  "port": 5089,
-  "host": "127.0.0.1",
-  "secret": "",
-  "npcManifestPath": "<path to generate-npc.py's .generated-npcs.json>",
-  "foundryDataRoot": "<path to your Foundry install's Data directory>"
-}
-```
-
-Everything else in `config.example.json` is optional and derived by
-default:
-- `pythonExecutable` / `generateNpcScript` — how to invoke the generator
-  for Create NPC and Regenerate; defaults to `python` and the script
-  bundled with `npcManifestPath`'s repo.
-- `foundryNpcSubdir` — the folder imports get nested under inside
-  `foundryDataRoot` (default `LancerNPCs`).
-- `npcTablesPath` / `stagedImportsDir` — where the generator's own
-  `npc-generator-tables.md` and its `npc-trait-import` skill's staged
-  candidates live, for the Tables and Trait Imports tabs.
-- `presetsDir` — where saved table presets are written.
-
-Then:
-
-```bash
-node server.js
-```
-
-and open `http://127.0.0.1:5089` in a browser. Four tabs:
-
-- **Import Generated Art** — pick a category, click a card to preview its
-  portrait and token, check the ones you want, and **Import Selected**.
-  Importing copies the files into `foundryDataRoot` for you if they aren't
-  there already, so nothing needs to be pre-staged under your Foundry Data
-  folder by hand. Sort and filter the grid, see when each NPC was
-  generated and the prompt that produced its art, regenerate art on any
-  of them, and **Delete Selected** to remove an NPC's generated files
-  entirely (blocked while an import or regen is in flight; never touches
-  an Actor already created in Foundry).
-- **Create NPC** — a form over `generate-npc.py`'s roll options (count,
-  seed, name, pronouns, per-table trait overrides, portrait/token toggles,
-  dry-run-vs-generate) that rolls new NPCs into the same review flow as
-  the CLI, ready to import from the first tab.
-- **Trait Imports** — lists reference-image trait candidates staged by
-  the `npc-trait-import` skill, sortable and dated, and appends the ones
-  you approve as new bullets in `npc-generator-tables.md`.
-- **Tables** — shows every bullet in every table of
-  `npc-generator-tables.md` and lets you disable ones you don't want
-  rolled, without deleting them, so they can be re-enabled later, and edit
-  each bullet's roll weight (multiplier) in place. Save your current
-  selection — which bullets are on, and each one's weight — as a named
-  preset, download it, and hand the file to someone else; they import it
-  into their own copy of this GUI and preview exactly what it would
-  change before applying — applying makes their tables match your
-  selection exactly, disabling anything in a table it covers that isn't
-  part of the preset, so it stays correct even after you add new bullets
-  later.
-
-In Foundry, **Game Settings → Configure Settings → FoundryVTT to
-SillyTavern NHP Uplink**, set **Import GUI server URL** to that same
-address (and **Import GUI shared secret** if you set one). The primary GM
-client polls it and creates the Actors; a badge on each card flips to
-**Imported** once that's done. Deleting the Actor in Foundry clears the
-badge again on the next poll, so re-importing it later is safe.
-
-Only NPCs exist as generated content today — mechs and spaceships have no
-generator yet, so their categories won't appear until one writes manifest
-entries in the same shape.
+It has no dependency on the narration relay above and works whether or not you
+use SillyTavern at all. The wire format between the two is documented in
+[docs/foundry-importer-contract.md](docs/foundry-importer-contract.md).
 
 ---
 

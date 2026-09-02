@@ -5,8 +5,6 @@
 # Foundry -> uplink requests. Ship config.example.json instead and let each
 # user generate their own.
 st-server-plugin/*/config.json
-import-gui-server/config.json
-import-gui-server/.imported.json
 config.local.json
 *.local.json
 .env

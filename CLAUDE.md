@@ -6,18 +6,19 @@ it touches anything.
 
 ## The components
 
-Four of them. Three form the narration relay; the fourth is independent.
+Three of them, forming the narration relay.
 
 | Path | What it is | How it ships |
 |---|---|---|
 | `foundry-module/foundryvtt-to-sillytavern-nhp-uplink/` | Foundry VTT module | `module.zip`, built by `.github/workflows/release.yml` |
 | `st-server-plugin/sillytavern-foundryvtt-input-server-plugin/` | SillyTavern server plugin, own HTTP listener on port 5088 | copied in by hand |
 | `st-ui-extension/sillytavern-foundryvtt-input/` | SillyTavern UI extension | mirrored to its own repo by the `mirror` job in `release.yml` |
-| `import-gui-server/` | Standalone NPC import GUI, port 5089 | run from source |
 
-The Import GUI has no dependency on the narration relay and works whether or not
-SillyTavern is installed. Its parked technical debt is in
-[docs/known-issues.md](docs/known-issues.md).
+The Foundry half of the **Lancer NPC Import GUI** also ships in this module
+(`scripts/importer.js`). The server half lives at
+<https://github.com/masterevan27/lancer-npc-import-gui>; the contract between
+them is in [docs/foundry-importer-contract.md](docs/foundry-importer-contract.md)
+and cannot change unilaterally.
 
 ## The double-nested directories are load-bearing
 
@@ -34,23 +35,20 @@ Do not flatten them.
 
 ## Running the tests
 
-Only `import-gui-server/` has a suite. Run it **from inside that directory**:
+There is no automated suite in this repo. The only one this project has
+belongs to the Import GUI and moved out with it to
+<https://github.com/masterevan27/lancer-npc-import-gui>.
+
+What CI does check here, in `.github/workflows/release.yml` at release time:
+both manifests parse and declare the version being cut, every file they
+reference exists, and every `esmodule` passes `node --check`. You can run
+that last check yourself:
 
 ```bash
-cd import-gui-server && node --test
+node --check foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/uplink.js
+node --check foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/importer.js
+node --check foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/whats-new.js
 ```
-
-Expect `pass 55`, `fail 0`. (54 real tests plus `test/helpers/testServer.js`,
-which Node counts as a test file because it sits under a directory named
-`test/`.)
-
-Running it from the repo root as `node --test import-gui-server/test/`
-**fails** with `MODULE_NOT_FOUND` — the trailing directory gets resolved as a
-module rather than a test path. Verified on Node v26.7.0. There is no
-`package.json` anywhere in this repo and no dependencies to install; everything
-is Node stdlib.
-
-CI runs the same command in `.github/workflows/test.yml`.
 
 ## Reading files
 
@@ -59,9 +57,6 @@ Several files here are large enough that reading them whole is wasteful:
 | File | Size |
 |---|---|
 | `README.md` | ~960 lines |
-| `import-gui-server/public/app.js` | ~49KB |
-| `import-gui-server/server.js` | ~46KB |
 
 Read the section, route or function you need. `README.md` has a heading every
-30-60 lines and `server.js` groups its routes under banner comments, so both
-scope cleanly.
+30-60 lines, so it scopes cleanly.

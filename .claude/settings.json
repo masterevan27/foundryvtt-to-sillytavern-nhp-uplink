@@ -2,8 +2,6 @@
   "permissions": {
     "deny": [
       "Read(/st-server-plugin/*/config.json)",
-      "Read(/import-gui-server/config.json)",
-      "Read(/import-gui-server/.imported.json)",
       "Read(*.local.json)",
       "Read(.env)",
       "Read(.env.*)",

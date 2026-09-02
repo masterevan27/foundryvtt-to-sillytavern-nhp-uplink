@@ -56,7 +56,7 @@ Several files here are large enough that reading them whole is wasteful:
 
 | File | Size |
 |---|---|
-| `README.md` | ~960 lines |
+| `README.md` | ~890 lines |
 
 Read the section, route or function you need. `README.md` has a heading every
 30-60 lines, so it scopes cleanly.

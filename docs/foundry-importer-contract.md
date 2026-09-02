@@ -25,7 +25,10 @@ X-Import-Gui-Key: <config.secret>
 ```
 
 An empty `secret` in `config.json` disables the check. A mismatch is
-`401 {"error": "bad or missing X-Import-Gui-Key"}`.
+`401 {"error": "bad or missing X-Import-Gui-Key"}`. If the header is absent,
+the server also accepts the secret as a `key` query parameter (e.g.
+`?key=<config.secret>`) as a fallback — the Foundry client always sends the
+header, so this only matters for a request made some other way.
 
 Responses set `Access-Control-Allow-Origin`, because these requests are
 cross-origin from Foundry's browser page. The `/api/*` routes do not need this —

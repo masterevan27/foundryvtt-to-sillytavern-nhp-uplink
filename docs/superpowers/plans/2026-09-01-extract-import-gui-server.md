@@ -2,6 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Complete. All five tasks landed on `worktree-extract-import-gui`
+(source commits `00a9525`..`ac41746`; the new repo `lancer-npc-import-gui`
+seeded through `3fe23fe`) — the existing worktree branch, not a new
+`extract-import-gui-server` branch as Task 1 Step 1 and Task 2 Step 7
+specified. The new repo is committed **locally only** and has not been
+published: Task 3 Step 7's `gh repo create ... --push` and CI check did not
+run (`gh` is not installed here and there is no SSH key), so that step is left
+unchecked below and `test.yml` has never executed on GitHub Actions. Task 5
+Step 1's push/CI gate was unsatisfiable for the same reason and was replaced
+with a content check (see its note). Every other step below is checked off as
+actually done; a handful carry a parenthetical note where what happened
+differs from what was written.
+
 **Goal:** Move `import-gui-server/` — with its git history, its 55-test suite
 and its documentation — into a new standalone repository
 `lancer-npc-import-gui`, leaving this repo with only the Foundry half of the
@@ -98,7 +111,9 @@ it.
   `main` branch has `server.js`, `lib/`, `public/`, `test/` and
   `config.example.json` at its root. Tasks 2 and 3 build on it.
 
-- [ ] **Step 1: Confirm the preconditions**
+- [x] **Step 1: Confirm the preconditions** *(ran, except `git switch main` —
+  skipped, since this work runs in a worktree already checked out at the
+  right commit)*
 
 ```bash
 git switch main
@@ -111,7 +126,7 @@ Expected: no output from `git status --porcelain`; all three files listed; and
 `target path is free`. If the target exists, stop and resolve it with the owner
 rather than writing into it.
 
-- [ ] **Step 2: Produce the split branch**
+- [x] **Step 2: Produce the split branch**
 
 ```bash
 git subtree split --prefix=import-gui-server -b import-gui-split
@@ -124,7 +139,7 @@ Expected: a non-zero commit count, and a tree listing exactly
 `import-gui-server` prefix. If the tree still shows the prefix, the split did
 not run; do not continue.
 
-- [ ] **Step 3: Verify the split preserved history, not just files**
+- [x] **Step 3: Verify the split preserved history, not just files**
 
 ```bash
 git log --oneline -5 import-gui-split -- server.js
@@ -134,7 +149,7 @@ Expected: several commits with their original subjects (e.g. the `feat:` commits
 that added weights and presets). A single "Initial commit" here means you have a
 copy, not a split — redo Step 2.
 
-- [ ] **Step 4: Create the new repo from the split branch**
+- [x] **Step 4: Create the new repo from the split branch**
 
 ```bash
 mkdir -p "G:/GIT REPOS/lancer-npc-import-gui"
@@ -147,7 +162,7 @@ ls
 
 Expected: `config.example.json  lib  public  server.js  test`.
 
-- [ ] **Step 5: Prove the suite passes in its new home**
+- [x] **Step 5: Prove the suite passes in its new home**
 
 ```bash
 node --test 2>&1 | tail -8
@@ -157,7 +172,7 @@ Expected: `tests 55`, `pass 55`, `fail 0`. Run from the repo root — the extra
 `cd` this project needed is gone, because `test/` is now directly beneath the
 working directory.
 
-- [ ] **Step 6: Commit (nothing to commit yet — verify instead)**
+- [x] **Step 6: Commit (nothing to commit yet — verify instead)**
 
 The reset produced a working tree identical to `FETCH_HEAD`; there is no new
 commit to make. Confirm:
@@ -169,7 +184,7 @@ git log --oneline -1
 
 Expected: no output from the first, and the newest split commit from the second.
 
-- [ ] **Step 7: Clean up the temporary branch in the source repo**
+- [x] **Step 7: Clean up the temporary branch in the source repo**
 
 ```bash
 cd "G:/GIT REPOS/FoundryVTT_to_SillyTavern_NHP_Uplink"
@@ -206,7 +221,7 @@ that fails if any part of it moves.
   `api.presets.test.js` and `api.tableBullets.test.js` respectively; any future
   test file needs another free one.
 
-- [ ] **Step 1: Re-read both sides before writing the document down**
+- [x] **Step 1: Re-read both sides before writing the document down**
 
 ```bash
 cd "G:/GIT REPOS/FoundryVTT_to_SillyTavern_NHP_Uplink"
@@ -220,7 +235,7 @@ server's `queueImport()` job shape plus `handleImporter()`. The document below
 must match what you see; if it does not, the code is right and this plan is
 stale — write down the code.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `test/importerContract.test.js` in the new repo:
 
@@ -297,7 +312,7 @@ test('an unknown /importer/ route 404s rather than falling through to /api', asy
 });
 ```
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 Before running, temporarily rename one route in `server.js` — change
 `url.pathname === '/importer/pending'` to `'/importer/pendingX'` — then:
@@ -309,7 +324,7 @@ node --test test/importerContract.test.js 2>&1 | tail -8
 Expected: `fail 1` — the first test gets a 404 instead of 200. This proves the
 test is actually watching the route and not passing vacuously.
 
-- [ ] **Step 4: Restore the route and verify it passes**
+- [x] **Step 4: Restore the route and verify it passes**
 
 ```bash
 git checkout -- server.js
@@ -320,7 +335,7 @@ node --test 2>&1 | tail -8
 Expected: `pass 4` from the first run, then `tests 59`, `pass 59`, `fail 0` from
 the whole suite — the previous 55 plus these 4.
 
-- [ ] **Step 5: Write the contract document**
+- [x] **Step 5: Write the contract document**
 
 Create `docs/foundry-importer-contract.md` in the new repo:
 
@@ -418,7 +433,7 @@ Land the server change and the module change together, and bump the module. If
 the module cannot be updated in step, add a route rather than altering one.
 ````
 
-- [ ] **Step 6: Put the same document in this repo**
+- [x] **Step 6: Put the same document in this repo**
 
 The Foundry half needs the contract too, and a reader there should not have to
 find another repository to learn what `importer.js` is talking to.
@@ -436,7 +451,9 @@ repo* consumes the `/importer/*` routes served by
 and change the `test/importerContract.test.js` reference to name that repo.
 Everything from `## Direction` onward is identical and needs no edit.
 
-- [ ] **Step 7: Commit, in both repos**
+- [x] **Step 7: Commit, in both repos** *(ran, except `git switch -c
+  extract-import-gui-server main` in this repo — the existing worktree branch
+  `worktree-extract-import-gui` was used instead)*
 
 ```bash
 cd "G:/GIT REPOS/lancer-npc-import-gui"
@@ -469,7 +486,7 @@ that were only ever about this tool.
 - Produces: a pushable repo. Task 5 deletes this repo's copies only after this
   task's push is green.
 
-- [ ] **Step 1: Copy the licence and the two documents across**
+- [x] **Step 1: Copy the licence and the two documents across**
 
 ```bash
 cd "G:/GIT REPOS/lancer-npc-import-gui"
@@ -482,7 +499,7 @@ ls -l LICENSE docs/
 
 Expected: a 35,823-byte `LICENSE` and two files in `docs/`.
 
-- [ ] **Step 2: Repoint the paths inside the two moved documents**
+- [x] **Step 2: Repoint the paths inside the two moved documents**
 
 Both were written from inside the uplink repo and refer to it. Confirm the hits
 first:
@@ -520,7 +537,7 @@ Leave every reference to `Lancer-TTRPG-GM-Hub`, `npc-generator-tables.md`,
 `.claude_to_do_list.md` and the uplink repo alone — those all point outside this
 repo and are still correct.
 
-- [ ] **Step 3: Write `.gitignore`**
+- [x] **Step 3: Write `.gitignore`**
 
 ```gitignore
 # Local configuration -- config.json holds the shared secret that authorises
@@ -561,7 +578,7 @@ Thumbs.db
 desktop.ini
 ```
 
-- [ ] **Step 4: Write the workflow**
+- [x] **Step 4: Write the workflow**
 
 Create `.github/workflows/test.yml`. It is the uplink repo's file with three
 changes, all because `test/` now sits at the repo root: the
@@ -606,7 +623,7 @@ jobs:
       - run: node --test
 ```
 
-- [ ] **Step 5: Write the README**
+- [x] **Step 5: Write the README**
 
 Create `README.md`. It carries what §8 of the uplink README said, plus the
 framing a standalone repo needs:
@@ -743,7 +760,7 @@ LANCER is a trademark of Massif Press. This is an unofficial community tool with
 no affiliation to Massif Press, Foundry Gaming LLC, or the SillyTavern project.
 ````
 
-- [ ] **Step 6: Verify the whole thing before publishing**
+- [x] **Step 6: Verify the whole thing before publishing**
 
 ```bash
 node --test 2>&1 | tail -8
@@ -756,7 +773,10 @@ file in the `grep -c` — no document should still describe this tool as living 
 a subdirectory. (`grep -c` prints `0` and exits non-zero when there are no
 matches; that non-zero exit is the success case here.)
 
-- [ ] **Step 7: Commit and publish**
+- [ ] **Step 7: Commit and publish** *(PARTIAL — `git add -A` and the commit
+  ran; `gh repo create ... --push` and `gh run list` did not: `gh` is not
+  installed here and there is no SSH key, so this repo has never been pushed
+  and `test.yml` has never run on GitHub Actions)*
 
 ```bash
 git add -A
@@ -791,7 +811,7 @@ settings UI, so they are user-facing text, not just comments.
 - Produces: nothing other tasks read. No behaviour changes — the endpoint,
   header name and default port are untouched.
 
-- [ ] **Step 1: Find every reference**
+- [x] **Step 1: Find every reference**
 
 ```bash
 cd "G:/GIT REPOS/FoundryVTT_to_SillyTavern_NHP_Uplink"
@@ -800,7 +820,7 @@ grep -n "import-gui-server" foundry-module/foundryvtt-to-sillytavern-nhp-uplink/
 
 Expected: four hits, at lines 23, 34, 63 and 69.
 
-- [ ] **Step 2: Update the header comment**
+- [x] **Step 2: Update the header comment**
 
 Change lines 23-24 from:
 
@@ -839,7 +859,7 @@ ends at line 43:
  * side ships separately, and a released module.zip cannot be updated in step.
 ```
 
-- [ ] **Step 3: Update the two user-facing setting hints**
+- [x] **Step 3: Update the two user-facing setting hints**
 
 Line 63, from:
 
@@ -865,7 +885,7 @@ to:
     hint: "Must match the secret in the Import GUI's config.json. Leave blank to disable auth.",
 ```
 
-- [ ] **Step 4: Verify nothing behavioural moved**
+- [x] **Step 4: Verify nothing behavioural moved**
 
 ```bash
 node --check foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/importer.js
@@ -876,7 +896,7 @@ Expected: `node --check` is silent (this is what `release.yml` runs on every
 esmodule), and the grep still shows the three endpoints, the auth header and the
 default `http://127.0.0.1:5089`, all unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/importer.js
@@ -903,7 +923,11 @@ README section it filled.
 - Consumes: a green CI run on `lancer-npc-import-gui` (Task 3, Step 7).
 - Produces: a repo with three components and no test suite.
 
-- [ ] **Step 1: Confirm the new repo really has everything, before deleting**
+- [x] **Step 1: Confirm the new repo really has everything, before deleting**
+  *(the gate as written could not be satisfied — nothing to push, no `gh` to
+  check CI — so it was replaced with a content check: all 15 files tracked
+  under `import-gui-server/` were hashed against their counterparts in the new
+  repo; 15 checked, 0 mismatches, 0 missing)*
 
 ```bash
 cd "G:/GIT REPOS/lancer-npc-import-gui"
@@ -916,7 +940,7 @@ Expected: no uncommitted changes, **nothing** unpushed, and a `completed
 success` run. Any of those failing means stop — this is the last moment the code
 exists in two places.
 
-- [ ] **Step 2: Delete the directory and the files that went with it**
+- [x] **Step 2: Delete the directory and the files that went with it**
 
 ```bash
 cd "G:/GIT REPOS/FoundryVTT_to_SillyTavern_NHP_Uplink"
@@ -928,7 +952,7 @@ git rm docs/superpowers/specs/2026-09-01-npc-tables-editor-and-presets-design.md
 
 Expected: 15 files removed from `import-gui-server`, plus three more.
 
-- [ ] **Step 3: Drop the ignore rules that were about it**
+- [x] **Step 3: Drop the ignore rules that were about it**
 
 In `.gitignore`, delete these two lines from the "Secrets / local configuration"
 block:
@@ -940,7 +964,9 @@ import-gui-server/.imported.json
 
 Leave `st-server-plugin/*/config.json` and the rest of the block alone.
 
-- [ ] **Step 4: Replace README §8 with a pointer**
+- [x] **Step 4: Replace README §8 with a pointer** *(ran; the plan's line
+  numbers were stale — it said section 8 began at line 380, it actually began
+  at line 399, because the hygiene plan's earlier edits had moved it)*
 
 Replace everything from `### 8. Import GUI (optional)` (line 380) up to but not
 including the `---` that precedes `## Security` with:
@@ -968,7 +994,7 @@ use SillyTavern at all. The wire format between the two is documented in
 [docs/foundry-importer-contract.md](docs/foundry-importer-contract.md).
 ````
 
-- [ ] **Step 5: Update `CLAUDE.md`**
+- [x] **Step 5: Update `CLAUDE.md`**
 
 Three edits:
 
@@ -1010,7 +1036,10 @@ Three edits:
    Also drop `import-gui-server/public/app.js` and `import-gui-server/server.js`
    from the "Reading files" table — `README.md` is the only large file left.
 
-- [ ] **Step 6: Verify nothing still points at the deleted directory**
+- [x] **Step 6: Verify nothing still points at the deleted directory** *(ran,
+  and caught two dangling references the plan did not anticipate: a README
+  ASCII-diagram box label naming `import-gui-server`, and two dead `Read()`
+  deny entries in `.claude/settings.json`. Both fixed as pure removals.)*
 
 ```bash
 grep -rn "import-gui-server" --include=*.md --include=*.js --include=*.json --include=*.yml . | grep -v "^./docs/superpowers/"
@@ -1020,7 +1049,7 @@ Expected: no output. Hits under `docs/superpowers/` are this plan and the audit
 spec, which describe the move and are correct. A hit anywhere else is a
 dangling reference — fix it before committing.
 
-- [ ] **Step 7: Verify the module still checks out**
+- [x] **Step 7: Verify the module still checks out**
 
 ```bash
 for f in $(node -e "console.log(require('./foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json').esmodules.join(' '))"); do
@@ -1032,7 +1061,7 @@ Expected: `ok scripts/uplink.js`, `ok scripts/importer.js`,
 `ok scripts/whats-new.js`. This is the same loop `release.yml` runs, so a pass
 here means a release would still build.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
@@ -1040,7 +1069,7 @@ git commit -m "chore: move the Import GUI server out to its own repo"
 git log --oneline -1
 ```
 
-- [ ] **Step 9: Record it in the changelog**
+- [x] **Step 9: Record it in the changelog**
 
 Add this section directly beneath the `---` separator in `CHANGELOG.md`, above
 `## 0.2.1`:
@@ -1080,13 +1109,20 @@ git commit -m "docs: add the 0.3.0 changelog section for the Import GUI move"
 
 ## Done
 
-- `lancer-npc-import-gui` exists on GitHub with the tool's full history, a
-  README of its own, `pass 59` in CI across three Node versions, and the two
-  documents that were only ever about it.
+- `lancer-npc-import-gui` exists as a **local** git repository at
+  `G:\GIT REPOS\lancer-npc-import-gui`, with the tool's full split history, a
+  README of its own, `pass 59` when the suite is run locally across the two
+  documents that were only ever about it. It is **not** on GitHub yet: no
+  repository has been created there and nothing has been pushed (`gh` is not
+  installed here and there is no SSH key), so `test.yml` has never run in CI
+  and the "three Node versions" claim is configured but unverified.
 - This repo has three components, an `importer.js` that names where its
   counterpart lives, and no dangling references.
 - The `/importer/*` contract is written down on both sides and pinned by four
   tests on the server side.
 
-The `extract-import-gui-server` branch is committed but not merged, and `main`
-is not pushed. Both are the repo owner's call.
+All five tasks landed on `worktree-extract-import-gui` (this worktree's own
+branch), not a separate `extract-import-gui-server` branch as the plan's Task
+2 Step 7 specified. That branch is committed but not merged into `main`, and
+`main` itself is unpushed. Publishing the new repo, merging this branch, and
+pushing `main` are all the repo owner's call.

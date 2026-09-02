@@ -310,7 +310,7 @@ Installing this way means no automatic updates.
 <summary>Why it lives in a second repository</summary>
 
 SillyTavern's installer only accepts a repo with `manifest.json` at the **root**,
-which this one cannot provide — the extension is one of four components here.
+which this one cannot provide — the extension is one of three components here.
 That repo is therefore a generated mirror, rewritten wholesale by this repo's
 release workflow from `st-ui-extension/sillytavern-foundryvtt-input/`. Nothing is
 developed there; open issues and pull requests against **this** repository.
@@ -878,9 +878,9 @@ git ls-tree -r v0.1.5 --name-only | grep release.yml
 
 Copyright (C) 2026 masterevan27.
 
-GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all four components in this
-repository: the Foundry module, the SillyTavern server plugin, the SillyTavern
-UI extension, and the Import GUI.
+GPL-3.0-or-later — see [LICENSE](LICENSE). This covers all three components in this
+repository: the Foundry module, the SillyTavern server plugin, and the
+SillyTavern UI extension.
 
 The [Lancer // CompCon theme](https://github.com/masterevan27/sillytavern-lancer-ui-theme)
 is a separate project in its own repository, under its own copy of the same

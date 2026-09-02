@@ -2,9 +2,13 @@
 
 **Status:** Split outcome. Findings 1-5 (the hygiene plan) are fixed, landed on
 `worktree-repo-hygiene-and-extraction`. Finding 6 — the Import GUI extraction —
-has **not** been started; "The Import GUI's home" section, success criterion 6,
-and everything about `lancer-npc-import-gui` below remain live, outstanding
-work. See the note at the end of the Summary.
+is complete, landed on `worktree-extract-import-gui`: `import-gui-server/` is
+gone from this repo and the tool lives in a new local repo
+`lancer-npc-import-gui` with its full split history, its own
+README/LICENSE/CI, and the `/importer/*` contract documented on both sides and
+pinned by four tests. It is **not yet published** — no GitHub repository has
+been created and nothing has been pushed. See the note at the end of the
+Summary.
 **Repo:** this one, root-level — every component is in scope
 **Source:** the read-only audit run on 2026-09-01 (classified a *spike*: its
 output was an answer, not code). This document turns that answer into a spec so
@@ -47,6 +51,17 @@ architecture section covers all four components, the changelog has its
 is untouched: `import-gui-server/` still lives in this repo, and everything
 about `lancer-npc-import-gui` and "The Import GUI's home" remains outstanding
 work for `docs/superpowers/plans/2026-09-01-extract-import-gui-server.md`.
+
+**Update (this branch, `worktree-extract-import-gui`):** the extraction
+described below is now complete —
+`docs/superpowers/plans/2026-09-01-extract-import-gui-server.md` is marked
+complete. `import-gui-server/` has been removed from this repo and the tool
+lives in a new local repo `lancer-npc-import-gui` with its full split
+history, its own README/LICENSE/CI, and the `/importer/*` contract
+documented on both sides and pinned by four tests. It is **not yet
+published**: the GitHub repository has not been created and nothing has been
+pushed (`gh` is not installed here and there is no SSH key), so the CI
+workflow has never run on GitHub Actions.
 
 ## Verified facts
 

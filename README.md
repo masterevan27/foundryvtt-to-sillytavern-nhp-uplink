@@ -160,6 +160,10 @@ step 2.
 Three pieces carry the narration relay, because neither application can talk to
 the other directly:
 
+> [docs/architecture.html](docs/architecture.html) draws the whole loop — both
+> figures, every route, and where the optional pieces (KoboldCpp, ComfyUI, TTS,
+> the Import GUI) attach. Open it in a browser; it has no build step.
+
 ```
 Foundry VTT (GM's browser)
     |  POST /event          (combat events + board state)

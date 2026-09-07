@@ -1,0 +1,786 @@
+<title>NHP Uplink Signal Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:   #e8e6e1;
+    --panel:   #f6f5f2;
+    --sunk:    #dedbd4;
+    --ink:     #171b20;
+    --dim:     #666d76;
+    --rule:    #c3bfb7;
+    --rule-2:  #d5d2cb;
+    --amber:   #a8500c;
+    --amber-f: #f0e2d2;
+    --steel:   #1c6182;
+    --steel-f: #dbe7ed;
+    --shadow:  0 1px 0 rgba(23,27,32,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:   #14171b;
+      --panel:   #1b1f24;
+      --sunk:    #101317;
+      --ink:     #dcdfe3;
+      --dim:     #8c949e;
+      --rule:    #333a42;
+      --rule-2:  #262c33;
+      --amber:   #ff9d42;
+      --amber-f: #2b1e12;
+      --steel:   #62b6da;
+      --steel-f: #10242e;
+      --shadow:  0 1px 0 rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #14171b;
+    --panel:   #1b1f24;
+    --sunk:    #101317;
+    --ink:     #dcdfe3;
+    --dim:     #8c949e;
+    --rule:    #333a42;
+    --rule-2:  #262c33;
+    --amber:   #ff9d42;
+    --amber-f: #2b1e12;
+    --steel:   #62b6da;
+    --steel-f: #10242e;
+    --shadow:  0 1px 0 rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 20px 96px;
+  }
+
+  .sheet { max-width: 1080px; margin: 0 auto; }
+
+  /* ---- title block ------------------------------------------------ */
+
+  .titleblock {
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    margin: 28px 0 40px;
+    box-shadow: var(--shadow);
+  }
+  .titleblock-main { padding: 26px 28px 22px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "Chakra Petch", "Segoe UI", sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 4.4vw, 42px);
+    line-height: 1.08;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+    margin: 0 0 12px;
+  }
+  .lede { margin: 0; max-width: 62ch; }
+  .lede strong { font-weight: 600; }
+
+  .titleblock-meta {
+    border-top: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .titleblock-meta div {
+    padding: 12px 16px 14px;
+    border-left: 1px solid var(--rule-2);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+  }
+  .titleblock-meta div:first-child { border-left: 0; }
+  .meta-k {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 3px;
+  }
+
+  /* ---- sections ---------------------------------------------------- */
+
+  section { margin: 0 0 52px; }
+
+  h2 {
+    font-family: "Chakra Petch", "Segoe UI", sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    margin: 0 0 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+  h2 span {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    color: var(--dim);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  h3 {
+    font-family: "Chakra Petch", "Segoe UI", sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    margin: 32px 0 8px;
+  }
+  p { max-width: 66ch; }
+  a { color: var(--steel); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+  /* ---- figures ----------------------------------------------------- */
+
+  figure { margin: 24px 0 0; }
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .scroll svg { display: block; height: auto; }
+  #relay { width: 1240px; max-width: none; }
+  #importer { width: 880px; max-width: none; }
+  figcaption {
+    font-size: 13px;
+    color: var(--dim);
+    margin-top: 12px;
+    max-width: 72ch;
+  }
+
+  /* svg-internal typography */
+  .s-box   { fill: var(--panel); stroke: currentColor; stroke-width: 1.2; }
+  .s-sunk  { fill: var(--sunk); stroke: var(--rule); stroke-width: 1; }
+  .s-title { font-family: "Chakra Petch", sans-serif; font-size: 13px; font-weight: 600; fill: currentColor; }
+  .s-sub   { font-family: "IBM Plex Mono", monospace; font-size: 10px; fill: var(--dim); letter-spacing: .04em; }
+  .s-item  { font-family: "IBM Plex Sans", sans-serif; font-size: 11.5px; fill: currentColor; }
+  .s-wire  { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500; }
+  .s-note  { font-family: "IBM Plex Sans", sans-serif; font-size: 10.5px; fill: var(--dim); }
+  .s-tag   { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .11em; fill: var(--dim); }
+  .out     { stroke: var(--amber); fill: var(--amber); }
+  .ret     { stroke: var(--steel); fill: var(--steel); }
+  .flow    { stroke-width: 1.6; fill: none; }
+  .opt     { stroke: var(--dim); stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; }
+  .bound   { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 3 5; }
+
+  /* ---- sequence ---------------------------------------------------- */
+
+  ol.path { list-style: none; counter-reset: step; padding: 0; margin: 20px 0 0; display: grid; gap: 2px; }
+  ol.path li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 16px;
+    padding: 13px 0;
+    border-top: 1px solid var(--rule-2);
+    align-items: start;
+  }
+  ol.path li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--dim);
+    padding-top: 2px;
+  }
+  ol.path b {
+    font-family: "Chakra Petch", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    display: block;
+  }
+  ol.path p { margin: 2px 0 0; font-size: 14px; max-width: 68ch; }
+
+  /* ---- tables ------------------------------------------------------ */
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 500;
+    border-bottom-color: var(--rule);
+  }
+  td code { font-size: 12.5px; }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .92em;
+    background: var(--sunk);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  .port { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .port.a { color: var(--amber); }
+  .port.s { color: var(--steel); }
+
+  /* ---- callouts ----------------------------------------------------- */
+
+  .warn {
+    border: 1px solid var(--amber);
+    background: var(--amber-f);
+    padding: 14px 18px;
+    margin: 24px 0 0;
+  }
+  .warn p { margin: 0; max-width: 68ch; font-size: 14px; }
+  .warn b { font-family: "Chakra Petch", sans-serif; }
+
+  .feed {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    padding: 16px 18px;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 20px 0 0;
+    color: var(--ink);
+  }
+  .feed .hdr { color: var(--amber); }
+  .feed .dim { color: var(--dim); }
+
+  .cols { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 24px; }
+  .cols h3 { margin-top: 0; }
+  .cols p { font-size: 14px; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    margin-top: 60px;
+    padding-top: 18px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+    justify-content: space-between;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color .15s ease; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="titleblock">
+    <div class="titleblock-main">
+      <p class="eyebrow">Foundry VTT &middot; LANCER &middot; SillyTavern</p>
+      <h1>NHP Uplink Signal Path</h1>
+      <p class="lede">
+        Foundry and SillyTavern cannot talk to each other directly. Three pieces carry the loop:
+        a Foundry module that watches the fight, a SillyTavern <strong>server plugin</strong> that
+        holds two separate HTTP faces, and a SillyTavern <strong>UI extension</strong> that feeds the
+        character card and relays its reply back to the table.
+      </p>
+    </div>
+    <div class="titleblock-meta">
+      <div><span class="meta-k">Module version</span>0.2.0</div>
+      <div><span class="meta-k">Foundry</span>v12 &ndash; v13</div>
+      <div><span class="meta-k">Lancer system</span>2.0+</div>
+      <div><span class="meta-k">Relay port</span><span class="port a">5088</span></div>
+      <div><span class="meta-k">Import GUI port</span><span class="port s">5089</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>The relay <span>figure 1</span></h2>
+    <p>
+      One dice roll in Foundry becomes one paragraph of fiction in Foundry chat. The loop crosses two
+      process boundaries and one origin boundary on the way out, and the same two coming back &mdash;
+      every hop below is a real HTTP call.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg id="relay" viewBox="0 0 1240 566" role="img"
+             aria-label="Combat events leave Foundry as POST /event to the plugin's standalone listener on port 5088, are pushed to the SillyTavern UI extension over server-sent events, injected into the chat and generated against an LLM backend; the reply is posted back to the plugin as /narration and polled out by Foundry via GET /outbound.">
+          <defs>
+            <marker id="ah-out" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 4 L0 8 z" fill="var(--amber)"/>
+            </marker>
+            <marker id="ah-ret" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 4 L0 8 z" fill="var(--steel)"/>
+            </marker>
+            <marker id="ah-opt" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 4 L0 8 z" fill="var(--dim)"/>
+            </marker>
+          </defs>
+
+          <!-- origin boundaries -->
+          <line class="bound" x1="264" y1="46" x2="264" y2="520"/>
+          <text class="s-tag" x="264" y="36" text-anchor="middle">CROSS-ORIGIN &middot; CORS + X-UPLINK-KEY</text>
+          <line class="bound" x1="656" y1="46" x2="656" y2="520"/>
+          <text class="s-tag" x="656" y="36" text-anchor="middle">SAME-ORIGIN &middot; INSIDE SILLYTAVERN</text>
+
+          <!-- ============ A: FOUNDRY ============ -->
+          <rect class="s-box" x="16" y="76" width="190" height="300" rx="2"/>
+          <text class="s-title" x="32" y="100">Foundry VTT</text>
+          <text class="s-sub"   x="32" y="116">GM&#8217;s browser, primary GM only</text>
+          <line x1="32" y1="128" x2="190" y2="128" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-sub"  x="32" y="148">scripts/uplink.js</text>
+          <text class="s-item" x="32" y="168">lancer.postFlow.* hooks</text>
+          <text class="s-item" x="32" y="187">chat cards, HP / heat deltas</text>
+          <text class="s-item" x="32" y="206">statuses, token movement</text>
+          <text class="s-item" x="32" y="225">board-state snapshot</text>
+          <rect class="s-sunk" x="32" y="240" width="158" height="40" rx="2"/>
+          <text class="s-note" x="42" y="257">buffered, flushed after</text>
+          <text class="s-note" x="42" y="271">2.5s of table quiet</text>
+          <line x1="32" y1="298" x2="190" y2="298" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-sub"  x="32" y="318">ChatMessage.create()</text>
+          <text class="s-item" x="32" y="338">AI-GM narration posted</text>
+          <text class="s-item" x="32" y="357">into the Foundry chat log</text>
+
+          <!-- ============ B: SERVER PLUGIN ============ -->
+          <rect class="s-box" x="322" y="76" width="276" height="300" rx="2"/>
+          <text class="s-title" x="338" y="100">SillyTavern server process</text>
+          <text class="s-sub"   x="338" y="116">sillytavern-foundryvtt-input-server-plugin</text>
+
+          <rect class="s-sunk" x="338" y="130" width="244" height="66" rx="2"/>
+          <text class="s-title" x="350" y="150">Standalone listener <tspan fill="var(--amber)">:5088</tspan></text>
+          <text class="s-note"  x="350" y="167">binds 127.0.0.1, permissive CORS</text>
+          <text class="s-note"  x="350" y="182">POST /event &middot; GET /outbound</text>
+
+          <rect class="s-sunk" x="338" y="212" width="244" height="60" rx="2"/>
+          <text class="s-title" x="350" y="232">Queues</text>
+          <text class="s-note"  x="350" y="249">inbound events + latest board state</text>
+          <text class="s-note"  x="350" y="263">outbound narration, maxQueue 500</text>
+
+          <rect class="s-sunk" x="338" y="288" width="244" height="72" rx="2"/>
+          <text class="s-title" x="350" y="308">Express router</text>
+          <text class="s-note"  x="350" y="325">/api/plugins/sillytavern-foundryvtt-input</text>
+          <text class="s-note"  x="350" y="340">GET /stream &middot; /state &middot; /status</text>
+          <text class="s-note"  x="350" y="354">POST /narration &middot; /clear</text>
+
+          <line class="flow out" x1="386" y1="196" x2="386" y2="207" marker-end="url(#ah-out)"/>
+          <line class="flow out" x1="386" y1="272" x2="386" y2="283" marker-end="url(#ah-out)"/>
+          <line class="flow ret" x1="540" y1="288" x2="540" y2="277" marker-end="url(#ah-ret)"/>
+          <line class="flow ret" x1="540" y1="212" x2="540" y2="201" marker-end="url(#ah-ret)"/>
+
+          <!-- ============ C: SILLYTAVERN BROWSER ============ -->
+          <rect class="s-box" x="714" y="76" width="220" height="300" rx="2"/>
+          <text class="s-title" x="730" y="100">SillyTavern</text>
+          <text class="s-sub"   x="730" y="116">browser tab, UI extension</text>
+          <line x1="730" y1="128" x2="918" y2="128" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-sub"  x="730" y="148">sillytavern-foundryvtt-input</text>
+          <text class="s-item" x="730" y="168">builds the table-feed digest</text>
+          <text class="s-item" x="730" y="187">setExtensionPrompt() holds</text>
+          <text class="s-item" x="730" y="206">live board state, in-chat</text>
+          <rect class="s-sunk" x="730" y="220" width="188" height="54" rx="2"/>
+          <text class="s-note" x="740" y="238">mode: auto / manual / observe</text>
+          <text class="s-note" x="740" y="253">cooldown + backlog gate before</text>
+          <text class="s-note" x="740" y="267">it fires /trigger</text>
+          <line x1="730" y1="292" x2="918" y2="292" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-sub"  x="730" y="312">chat + AI-GM character card</text>
+          <text class="s-item" x="730" y="332">MESSAGE_RECEIVED fires the</text>
+          <text class="s-item" x="730" y="351">relay back to Foundry</text>
+
+          <!-- ============ D: LLM BACKEND ============ -->
+          <rect class="s-box" x="1046" y="76" width="178" height="224" rx="2"/>
+          <text class="s-title" x="1062" y="100">LLM backend</text>
+          <text class="s-sub"   x="1062" y="116">whatever ST is wired to</text>
+          <line x1="1062" y1="128" x2="1208" y2="128" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-item" x="1062" y="150">KoboldCpp (local)</text>
+          <text class="s-item" x="1062" y="169">text-generation-webui</text>
+          <text class="s-item" x="1062" y="188">any hosted API</text>
+          <text class="s-note" x="1062" y="216">Fiction only: the model never</text>
+          <text class="s-note" x="1062" y="230">rolls dice or decides outcomes.</text>
+          <text class="s-note" x="1062" y="256">The uplink never calls it</text>
+          <text class="s-note" x="1062" y="270">directly. SillyTavern does.</text>
+
+          <!-- ============ WIRES: A to B ============ -->
+          <text class="s-wire out" x="264" y="146" text-anchor="middle">POST /event</text>
+          <line class="flow out" x1="206" y1="158" x2="316" y2="158" marker-end="url(#ah-out)"/>
+          <text class="s-note" x="264" y="174" text-anchor="middle">events + state</text>
+
+          <line class="flow ret" x1="316" y1="330" x2="208" y2="330" marker-end="url(#ah-ret)"/>
+          <text class="s-wire ret" x="264" y="322" text-anchor="middle">GET /outbound</text>
+          <text class="s-note" x="264" y="348" text-anchor="middle">?since=cursor</text>
+
+          <!-- ============ WIRES: B to C ============ -->
+          <text class="s-wire out" x="656" y="146" text-anchor="middle">SSE /stream</text>
+          <line class="flow out" x1="598" y1="158" x2="708" y2="158" marker-end="url(#ah-out)"/>
+          <text class="s-note" x="656" y="174" text-anchor="middle">pushed, keep-alive</text>
+
+          <line class="flow ret" x1="708" y1="330" x2="600" y2="330" marker-end="url(#ah-ret)"/>
+          <text class="s-wire ret" x="656" y="322" text-anchor="middle">POST /narration</text>
+          <text class="s-note" x="656" y="348" text-anchor="middle">reply text + speaker</text>
+
+          <!-- ============ WIRES: C to D ============ -->
+          <text class="s-wire out" x="990" y="146" text-anchor="middle">/trigger</text>
+          <line class="flow out" x1="934" y1="158" x2="1040" y2="158" marker-end="url(#ah-out)"/>
+          <text class="s-note" x="990" y="174" text-anchor="middle">prompt + state</text>
+
+          <line class="flow ret" x1="1040" y1="212" x2="936" y2="212" marker-end="url(#ah-ret)"/>
+          <text class="s-wire ret" x="990" y="204" text-anchor="middle">narration</text>
+
+          <!-- ============ OPTIONAL BRANCH ============ -->
+          <path class="opt" d="M824 376 L824 414" marker-end="url(#ah-opt)"/>
+          <rect x="714" y="418" width="220" height="76" rx="2" fill="none" stroke="var(--dim)" stroke-width="1.2" stroke-dasharray="5 4"/>
+          <text class="s-title" x="730" y="440" fill="var(--dim)">ComfyUI &middot; TTS</text>
+          <text class="s-note"  x="730" y="458">SillyTavern&#8217;s own extensions,</text>
+          <text class="s-note"  x="730" y="472">reading the same chat.</text>
+          <text class="s-note"  x="730" y="486">No uplink code is involved.</text>
+
+          <!-- ============ LEGEND ============ -->
+          <line class="flow out" x1="16" y1="452" x2="48" y2="452" marker-end="url(#ah-out)"/>
+          <text class="s-note" x="56" y="456">table &#8594; fiction</text>
+          <line class="flow ret" x1="16" y1="476" x2="48" y2="476" marker-end="url(#ah-ret)"/>
+          <text class="s-note" x="56" y="480">fiction &#8594; table</text>
+          <line class="opt" x1="16" y1="500" x2="48" y2="500"/>
+          <text class="s-note" x="56" y="504">optional, not this repo&#8217;s code</text>
+
+          <text class="s-tag" x="16" y="540">FIG. 1 &mdash; NARRATION RELAY, ONE FULL CYCLE</text>
+        </svg>
+      </div>
+      <figcaption>
+        The plugin&#8217;s two faces are the load-bearing detail. Foundry&#8217;s requests are cross-origin, and
+        SillyTavern&#8217;s Helmet and CSRF middleware reject them outright &mdash; so the plugin opens its own
+        listener on <span class="port a">5088</span> for Foundry, while the browser half talks to the
+        ordinary plugin router mounted inside SillyTavern&#8217;s Express app, same-origin.
+      </figcaption>
+    </figure>
+
+    <div class="warn">
+      <p>
+        <b>Do not point Foundry at SillyTavern&#8217;s web UI port.</b> The uplink URL is the
+        <span class="port a">:5088</span> listener &mdash; a different socket in the same process.
+        Pointing Foundry at SillyTavern&#8217;s own port is the most common misconfiguration, and it fails
+        as a blocked CORS preflight before the POST is ever sent.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>One attack, end to end <span>sequence</span></h2>
+    <ol class="path">
+      <li>
+        <div>
+          <b>Foundry fires a hook</b>
+          <p>
+            <code>uplink.js</code> listens on <code>lancer.postFlow.*</code> for attacks, tech attacks,
+            damage, structure and stress, plus actor, token and effect updates. The rendered chat card is
+            folded into the flow event that produced it, so one attack is one line, not two.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>Events buffer, then flush</b>
+          <p>
+            Nothing is sent per-hook. Events collect until the table has been quiet for 2.5 seconds, then
+            go out together with a fresh board-state snapshot. Only the primary active GM&#8217;s client
+            transmits, so a second GM at the table does not duplicate the feed.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b><code>POST /event</code> to port 5088</b>
+          <p>
+            Cross-origin, carrying <code>X-Uplink-Key</code>. The plugin appends to its inbound queue,
+            replaces the stored board state, and broadcasts to every connected stream.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>Server-sent events push it to the browser</b>
+          <p>
+            The UI extension holds an <code>EventSource</code> on <code>/stream</code> and tracks a
+            sequence cursor, so a dropped connection resumes rather than replays.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>The extension writes into the chat</b>
+          <p>
+            The digest is pushed into the chat as a message &mdash; as you, or as the narrator, depending
+            on settings &mdash; while the live board state goes in separately through
+            <code>setExtensionPrompt()</code>, so it is always current rather than accumulating stale
+            copies down the log.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>Generation, if the gate opens</b>
+          <p>
+            In <code>auto</code> mode the extension calls <code>/trigger</code>, but only past a cooldown
+            or an unnarrated backlog, so a flurry of rolls becomes one reply. <code>manual</code> injects
+            and waits for you; <code>observe</code> logs the digest to the console and stops there.
+            SillyTavern handles the model call &mdash; KoboldCpp or any other connector.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>The reply is relayed back</b>
+          <p>
+            <code>MESSAGE_RECEIVED</code> fires, the extension skips anything it injected itself, and
+            <code>POST /narration</code> puts the text on the plugin&#8217;s outbound queue.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <b>Foundry polls and posts</b>
+          <p>
+            <code>GET /outbound?since=</code> runs on the module&#8217;s poll interval. Each item becomes a
+            <code>ChatMessage</code> under the configured speaker alias, flagged so the module never
+            re-ingests its own narration.
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="feed"><span class="hdr">[FOUNDRY VTT // TABLE FEED]</span>
+
+<span class="dim">--- ROUND 3 ---</span>
+&gt; Blackbeard [friendly] takes their turn.
+* Blackbeard: Weapon Attack - Assault Rifle
+    ATTACK
+    18 vs EVASION 8
+    HIT
+    9 Kinetic
+* Sunzi: HP 22 -&gt; 13/22 (-9)
+* Sunzi gains IMPAIRED
+
+<span class="dim">BOARD STATE - Round 3, active: Blackbeard</span>
+ALLIED:
+  Blackbeard  &lt;ACTIVE&gt;  HP 18/18  Heat 4/6  Ev 8  EDef 8  @(12,7)
+HOSTILE:
+  Sunzi  HP 13/22  Str 0/1  Ev 8  EDef 10  [IMPAIRED]  @(15,9)</div>
+    <figcaption>
+      What arrives on the card at step 5. Foundry stays the authority on mechanics &mdash; the model is
+      handed a faithful account of what already happened and asked only for fiction.
+    </figcaption>
+  </section>
+
+  <section>
+    <h2>Wire reference <span>routes &amp; auth</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>Served on</th>
+          <th>Called by</th>
+          <th>Carries</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>POST /event</code></td>
+          <td>standalone <span class="port a">:5088</span></td>
+          <td>Foundry module</td>
+          <td>event batch + board state</td>
+        </tr>
+        <tr>
+          <td><code>GET /outbound?since=</code></td>
+          <td>standalone <span class="port a">:5088</span></td>
+          <td>Foundry module</td>
+          <td>queued narration, cursor</td>
+        </tr>
+        <tr>
+          <td><code>GET /stream</code></td>
+          <td>ST plugin router</td>
+          <td>UI extension</td>
+          <td>SSE: hello, then events</td>
+        </tr>
+        <tr>
+          <td><code>POST /narration</code></td>
+          <td>ST plugin router</td>
+          <td>UI extension</td>
+          <td>reply text + speaker</td>
+        </tr>
+        <tr>
+          <td><code>GET /state</code>, <code>/inbound</code></td>
+          <td>ST plugin router</td>
+          <td>UI extension</td>
+          <td>latest board state, backlog</td>
+        </tr>
+        <tr>
+          <td><code>GET /status</code>, <code>POST /clear</code></td>
+          <td>ST plugin router</td>
+          <td>UI extension</td>
+          <td>health, queue reset</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:20px">
+      Every <span class="port a">:5088</span> request carries <code>X-Uplink-Key</code>, matched against
+      <code>secret</code> in the plugin&#8217;s <code>config.json</code>. A blank secret disables the check
+      entirely and the plugin logs <code>auth: OFF</code> at startup. The listener binds
+      <code>127.0.0.1</code>, but the secret still matters: any page you visit can attempt requests to
+      localhost, and CORS here has to be permissive because Foundry&#8217;s origin varies by deployment.
+    </p>
+  </section>
+
+  <section>
+    <h2>Off the relay <span>optional pieces</span></h2>
+    <div class="cols">
+      <div>
+        <h3>KoboldCpp and other backends</h3>
+        <p>
+          The uplink has no model configuration and never calls a backend. It hands SillyTavern text;
+          whatever connector SillyTavern is set to &mdash; KoboldCpp on the same machine, a hosted API
+          &mdash; is entirely SillyTavern&#8217;s business.
+        </p>
+      </div>
+      <div>
+        <h3>ComfyUI and TTS</h3>
+        <p>
+          Both are SillyTavern&#8217;s own extensions working from the same chat. They illustrate and voice
+          the AI GM without the uplink participating in any way, which is exactly why they keep working
+          out of combat when no events are flowing.
+        </p>
+      </div>
+      <div>
+        <h3>Lancer // CompCon theme</h3>
+        <p>
+          Cosmetic and separate: a SillyTavern theme in COMP/CON&#8217;s palette that colour-codes who is
+          speaking. Its own repository, installed independently, no effect on the relay.
+        </p>
+      </div>
+    </div>
+
+    <h3>Import GUI &mdash; a second, unrelated track</h3>
+    <p>
+      The Lancer NPC Import GUI also ships its Foundry half in this module
+      (<code>scripts/importer.js</code>), which makes it easy to mistake for part of the relay. It is not.
+      It shares no endpoint, no port and no process, and works whether or not SillyTavern is installed.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg id="importer" viewBox="0 0 880 286" role="img"
+             aria-label="Foundry's importer.js calls three /importer routes on the standalone Import GUI server on port 5089; that same server serves the Import GUI page over same-origin /api routes. Foundry only ever calls out.">
+          <defs>
+            <marker id="ah-imp" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 4 L0 8 z" fill="var(--steel)"/>
+            </marker>
+          </defs>
+
+          <rect class="s-box" x="20" y="52" width="204" height="176" rx="2"/>
+          <text class="s-title" x="36" y="76">Foundry VTT</text>
+          <text class="s-sub"   x="36" y="92">scripts/importer.js</text>
+          <line x1="36" y1="104" x2="208" y2="104" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-item" x="36" y="124">ships inside module.zip</text>
+          <text class="s-item" x="36" y="143">one poller: the primary GM</text>
+          <text class="s-item" x="36" y="162">creates Actors locally</text>
+          <text class="s-note" x="36" y="188">&#8220;socket&#8221;: false. Nothing</text>
+          <text class="s-note" x="36" y="202">reaches into a running world.</text>
+
+          <rect class="s-box" x="456" y="52" width="204" height="176" rx="2"/>
+          <text class="s-title" x="472" y="76">Import GUI server</text>
+          <text class="s-sub"   x="472" y="92">own repo, <tspan fill="var(--steel)">:5089</tspan></text>
+          <line x1="472" y1="104" x2="644" y2="104" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-item" x="472" y="124">queues NPCs for import</text>
+          <text class="s-item" x="472" y="143">rolls new ones</text>
+          <text class="s-item" x="472" y="162">curates roll tables</text>
+          <text class="s-note" x="472" y="188">X-Import-Gui-Key on every</text>
+          <text class="s-note" x="472" y="202">/importer/* request</text>
+
+          <rect x="708" y="82" width="152" height="116" rx="2" fill="var(--sunk)" stroke="var(--rule)" stroke-width="1"/>
+          <text class="s-title" x="722" y="106">Import GUI page</text>
+          <text class="s-note"  x="722" y="126">served by that same</text>
+          <text class="s-note"  x="722" y="140">process</text>
+          <text class="s-note"  x="722" y="164">same-origin /api/*,</text>
+          <text class="s-note"  x="722" y="178">no CORS needed</text>
+
+          <line class="flow ret" x1="224" y1="96"  x2="450" y2="96"  marker-end="url(#ah-imp)"/>
+          <text class="s-wire ret" x="337" y="88"  text-anchor="middle">GET /importer/pending</text>
+          <line class="flow ret" x1="224" y1="140" x2="450" y2="140" marker-end="url(#ah-imp)"/>
+          <text class="s-wire ret" x="337" y="132" text-anchor="middle">POST /importer/complete</text>
+          <line class="flow ret" x1="224" y1="184" x2="450" y2="184" marker-end="url(#ah-imp)"/>
+          <text class="s-wire ret" x="337" y="176" text-anchor="middle">POST /importer/reconcile</text>
+          <text class="s-note" x="337" y="206" text-anchor="middle">Foundry only ever calls out</text>
+
+          <line class="flow ret" x1="660" y1="140" x2="702" y2="140" marker-end="url(#ah-imp)"/>
+
+          <text class="s-tag" x="20" y="262">FIG. 2 &mdash; IMPORT GUI TRACK, NO SILLYTAVERN AND NO SHARED ENDPOINT</text>
+        </svg>
+      </div>
+      <figcaption>
+        These three routes are a cross-repo contract. A released module is already installed in worlds
+        nobody can update, so they cannot change unilaterally &mdash; see
+        <code>docs/foundry-importer-contract.md</code>, pinned by a test in the Import GUI repo.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Keeping this current <span>maintenance</span></h2>
+    <p>
+      This page is the source of truth for how the pieces connect, so it goes stale the moment a route
+      moves. Update <code>docs/architecture.html</code> when any of the following changes:
+    </p>
+    <table>
+      <thead>
+        <tr><th>If this changes</th><th>Update</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A route is added, removed or renamed</td>
+          <td>Figure 1 wire labels, and the wire reference table</td>
+        </tr>
+        <tr>
+          <td>Which listener serves a route</td>
+          <td>The sub-boxes inside the server-process box &mdash; that split is the whole point of the figure</td>
+        </tr>
+        <tr>
+          <td>Default port, auth header, or queue cap</td>
+          <td>Title block, figure labels, wire reference</td>
+        </tr>
+        <tr>
+          <td>Buffer window, poll interval or generation gate</td>
+          <td>Steps 2 and 6, and the figure&#8217;s inline notes</td>
+        </tr>
+        <tr>
+          <td>Module version or Foundry / Lancer compatibility</td>
+          <td>Title block only &mdash; it mirrors <code>module.json</code></td>
+        </tr>
+        <tr>
+          <td>The <code>/importer/*</code> contract</td>
+          <td>Figure 2, and the Import GUI repo, together &mdash; never one alone</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:20px">
+      Both figures are hand-authored inline SVG with no build step and no dependencies: edit the markup,
+      reload the file. Colours come from CSS custom properties, so a stroke that should read as
+      table-to-fiction takes <code>class="flow out"</code> rather than a literal hex value, and both
+      light and dark themes follow automatically.
+    </p>
+  </section>
+
+  <footer>
+    <span>foundryvtt-to-sillytavern-nhp-uplink &middot; docs/architecture.html</span>
+    <span>Module 0.2.0 &middot; revised 2026-09-07</span>
+  </footer>
+
+</div>

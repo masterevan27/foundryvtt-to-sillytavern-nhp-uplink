@@ -26,6 +26,8 @@
  * polls the plugin for AI-GM narration and posts it into Foundry chat.
  */
 
+import { buildEnvelope } from './envelope.mjs';
+
 const MOD = "foundryvtt-to-sillytavern-nhp-uplink";
 
 /* ------------------------------------------------------------------ */
@@ -139,6 +141,11 @@ const SETTINGS = {
 
 function setting(key) {
   return game.settings.get(MOD, key);
+}
+
+function settingText(key, fallback = "") {
+  const value = setting(key);
+  return typeof value === "string" ? value : fallback;
 }
 
 function log(...args) {
@@ -513,13 +520,9 @@ async function flush() {
   const batch = queue;
   queue = [];
 
-  const body = JSON.stringify({
-    source: "foundry",
-    world: game.world?.title ?? game.world?.id ?? null,
-    sentAt: Date.now(),
-    events: batch,
-    state: snapshotState(),
-  });
+  const snapshotAt = Date.now();
+  const state = snapshotState();
+  const body = JSON.stringify(buildEnvelope(batch, state, game.world, snapshotAt));
 
   try {
     const res = await fetch(
@@ -613,6 +616,8 @@ function absorbCardIntoFlow(flowEvent, actorId) {
         : !!flowEvent.actor && entry.speakerName === flowEvent.actor;
     if (!sameActor) continue;
     entry.claimed = true;
+    flowEvent.nativeMessageId = entry.event.nativeMessageId ?? null;
+    flowEvent.nativeActorId = entry.event.nativeActorId ?? entry.actorId ?? null;
     flowEvent.rendered = entry.event.text;
     if (entry.event.rollTotals) flowEvent.rollTotals = entry.event.rollTotals;
     // Drop the standalone card so the digest does not carry it twice. If the
@@ -661,7 +666,7 @@ function onChatMessage(msg) {
 
   // Belt and braces: if the flag is ever lost (another module rewriting the
   // message, a relayed copy), fall back to matching the narration speaker alias.
-  const narrationAlias = (setting("narrationSpeaker") ?? "").trim();
+  const narrationAlias = settingText("narrationSpeaker").trim();
   if (narrationAlias && (msg.speaker?.alias ?? "").trim() === narrationAlias)
     return;
 
@@ -691,6 +696,8 @@ function onChatMessage(msg) {
       .filter((n) => typeof n === "number");
     const emitted = enqueue({
       type: "chat_card",
+      nativeMessageId: msg.id ?? null,
+      nativeActorId: actor?.id ?? speaker.actor ?? null,
       actor: speakerName,
       text,
       rollTotals: rollTotals.length ? rollTotals : undefined,
@@ -706,6 +713,8 @@ function onChatMessage(msg) {
 
   enqueue({
     type: "chat",
+    nativeMessageId: msg.id ?? null,
+    nativeActorId: actor?.id ?? speaker.actor ?? null,
     user: msg.author?.name ?? msg.user?.name ?? "unknown",
     actor: speaker.alias ?? actor?.name ?? null,
     inCharacter: !!(speaker.alias || actor),

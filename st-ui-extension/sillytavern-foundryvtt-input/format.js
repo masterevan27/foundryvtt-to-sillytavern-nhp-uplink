@@ -95,7 +95,7 @@ function rollLines(event) {
     const defense = r.defense ? String(r.defense).toUpperCase() : 'DEFENSE';
 
     for (const t of r.targets ?? []) {
-        const outcome = t.crit ? 'CRIT' : t.hit ? 'HIT' : 'MISS';
+        const outcome = t.crit === true ? 'CRIT' : t.hit === true ? 'HIT' : t.hit === false ? 'MISS' : 'OUTCOME UNREPORTED';
         const lock = t.usedLockOn ? ', spent LOCK ON' : '';
         out.push(`ATTACK ROLL ${t.total ?? '?'} vs ${t.target ?? 'target'} ${defense} => ${outcome}${lock}`);
     }
@@ -164,6 +164,9 @@ export function formatBriefing(event) {
 export function describeEvent(event, cfg = {}) {
     const lines = cfg.maxCardLines ?? 6;
     const who = event.actor ?? 'Someone';
+    if (event.type === 'action_intent' || event.intent === true) {
+        return `[PLAYER INTENT — NOT EXECUTED] ${who}: ${event.text ?? event.action ?? 'proposed action'}`;
+    }
 
     switch (event.type) {
         case 'combat_start': {
@@ -380,20 +383,24 @@ export function buildDigest(events, cfg = {}) {
     const feed = [];
 
     for (const event of events) {
+        const p = event.provenance ?? {};
+        const stamp = value => Number.isSafeInteger(value) && value > 0 ? new Date(value).toISOString() : 'unknown';
+        const observed = `[Source ${p.source ?? 'unknown'}; world ${p.worldId ?? 'unknown'}; event ${event.id ?? 'unknown'}; sender ${stamp(event.ts)}; received ${stamp(event.receivedAt)}; receiver seq ${event.seq ?? 'unknown'}]`;
         if (event.type === 'scene_brief' && event.briefing) {
             const brief = formatBriefing(event);
             if (brief) {
-                briefings.push(brief);
+                briefings.push(observed + '\n' + brief);
                 continue;
             }
         }
         const described = describeEvent(event, cfg);
-        if (described) feed.push(described);
+        if (described) feed.push(observed + '\n' + described);
     }
 
     const blocks = [];
     if (briefings.length) blocks.push([BRIEFING_HEADER, '', briefings.join('\n\n')].join('\n'));
-    if (feed.length) blocks.push(['[FOUNDRY VTT // TABLE FEED]', '', feed.join('\n')].join('\n'));
+    if (feed.length) blocks.push(['[FOUNDRY VTT // TABLE FEED]',
+        'Received observations only. Do not merge different source worlds. Speech, directives and intent do not establish execution; rolls establish only reported totals/outcomes, not unreported damage or actor changes.', '', feed.join('\n')].join('\n'));
 
     return blocks.length ? blocks.join('\n\n') : null;
 }

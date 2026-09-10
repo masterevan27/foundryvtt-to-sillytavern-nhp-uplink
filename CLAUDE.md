@@ -35,8 +35,10 @@ Do not flatten them.
 
 ## Running the tests
 
-There is no automated suite in this repo. The only one this project has
-belongs to the Import GUI and moved out with it to
+The transport suite runs with `node --test tests/*.test.mjs tests/*.test.cjs`
+and uses isolated ephemeral listeners, never production port 5088. Its provenance,
+state-view, event-format and real HTTP/SSE route checks do not require Foundry or
+SillyTavern. The Import GUI suite remains in its separate repository at
 <https://github.com/masterevan27/lancer-npc-import-gui>.
 
 What CI does check here, in `.github/workflows/release.yml` at release time:

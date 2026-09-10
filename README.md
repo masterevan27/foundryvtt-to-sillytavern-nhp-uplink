@@ -66,7 +66,7 @@ one in turn. Note what it does _not_ do: on the natural 20 it names the roll and
 stops — _"Roll damage and let's see what Foundry gives you"_ — instead of
 inventing the damage itself. That restraint is the card's doing, and it is the
 single most important thing to carry over if you write your own. The
-`BOARD STATE` block under each digest is the live snapshot described in
+`BOARD STATE` block under each digest is the received observation described in
 [Architecture](#architecture).
 
 ![The Foundry table feed and the AI GM's replies, alternating in SillyTavern](examples/FoundryVTT%20Table%20Feed%20in%20SillyTavern.png)
@@ -600,10 +600,11 @@ The most useful setting is **quiet period**. Too short and the AI narrates
 mid-attack; too long and it feels laggy. 2500ms suits most tables — raise it if
 your group rolls in fast bursts.
 
-**Inject live board state** keeps exactly one current roster in the prompt,
-injected at depth 0 rather than appended to each digest. That means the history
-holds one live snapshot instead of one stale snapshot per turn, and because
-depth 0 sits behind the cached prefix it does not invalidate prompt caching.
+**Inject observed board state** keeps exactly one received roster in the prompt,
+injected at depth 0 rather than appended to each digest. The block is labeled
+with its source, world, timestamp, age and freshness status; it is an historical
+observation, never a live query. Because depth 0 sits behind the cached prefix
+it does not invalidate prompt caching.
 Static defences (Armor, Evasion, E-Defense, speed, size) are omitted from the
 recurring block; the **Insert board state** button drops the full sheet when you
 want it.

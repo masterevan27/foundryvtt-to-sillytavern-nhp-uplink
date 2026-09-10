@@ -36,12 +36,13 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const { policyFrom, senderProvenance, observeSnapshot, evaluateState } = require('./provenance.cjs');
 
 const PLUGIN_ID = 'sillytavern-foundryvtt-input';
 
 // Stamped by the release workflow. Reported to the UI extension so a mismatch
 // can name the version the user actually has, instead of just failing.
-const PLUGIN_VERSION = '0.1.6';
+const PLUGIN_VERSION = '0.2.1';
 
 /*
  * Wire-contract version, shared with the UI extension. Bump it ONLY when a
@@ -67,6 +68,8 @@ const DEFAULT_CONFIG = {
     secret: '',
     maxQueue: 500,
     logEvents: false,
+    staleAfterMs: 60000,
+    maxClockSkewMs: 5000,
 };
 
 function loadConfig() {
@@ -80,13 +83,15 @@ function loadConfig() {
     return {
         ...DEFAULT_CONFIG,
         ...fromFile,
-        port: Number(process.env.NHP_UPLINK_PORT || fromFile.port || DEFAULT_CONFIG.port),
+        port: Number(process.env.NHP_UPLINK_PORT ?? fromFile.port ?? DEFAULT_CONFIG.port),
         host: process.env.NHP_UPLINK_HOST || fromFile.host || DEFAULT_CONFIG.host,
         secret: process.env.NHP_UPLINK_SECRET ?? fromFile.secret ?? DEFAULT_CONFIG.secret,
     };
 }
 
-const config = loadConfig();
+function createPlugin(overrides = {}) {
+const config = { ...loadConfig(), ...overrides };
+Object.assign(config, policyFrom(config));
 
 /* ------------------------------------------------------------------ */
 /* Shared state                                                        */
@@ -101,7 +106,8 @@ let inboundSeq = 0;
 let outboundSeq = 0;
 
 /** Most recent board state snapshot sent by Foundry. */
-let latestState = null;
+let latestSnapshot = null;
+const snapshot = () => evaluateState(latestSnapshot);
 let lastFoundryContact = null;
 
 /** Connected SSE clients (the UI extension, usually exactly one). */
@@ -111,13 +117,15 @@ function trim(queue) {
     while (queue.length > config.maxQueue) queue.shift();
 }
 
-function pushInbound(events, state) {
-    if (state) latestState = state;
+function pushInbound(events, payload) {
     lastFoundryContact = Date.now();
+    latestSnapshot = observeSnapshot(latestSnapshot, payload, lastFoundryContact, config);
 
     const stored = [];
     for (const event of events) {
-        const record = { seq: ++inboundSeq, receivedAt: Date.now(), ...event };
+        if (!event || typeof event !== 'object' || Array.isArray(event)) continue;
+        const record = { ...event, seq: ++inboundSeq, receivedAt: lastFoundryContact,
+            provenance: senderProvenance(payload, lastFoundryContact) };
         inbound.push(record);
         stored.push(record);
     }
@@ -127,7 +135,7 @@ function pushInbound(events, state) {
         for (const e of stored) console.log(`[${PLUGIN_ID}] << ${e.type}${e.flow ? `:${e.flow}` : ''}${e.actor ? ` (${e.actor})` : ''}`);
     }
 
-    broadcast({ type: 'events', events: stored, state: latestState });
+    broadcast({ type: 'events', events: stored, ...snapshot() });
     return stored;
 }
 
@@ -234,8 +242,8 @@ async function handleStandalone(req, res) {
             const raw = await readBody(req);
             const payload = JSON.parse(raw || '{}');
             const events = Array.isArray(payload.events) ? payload.events : [];
-            const stored = pushInbound(events, payload.state ?? null);
-            sendJson(res, 200, { ok: true, accepted: stored.length, cursor: inboundSeq });
+            const stored = pushInbound(events, payload);
+            sendJson(res, 200, { ok: true, accepted: stored.length, cursor: inboundSeq, stateMeta: snapshot().stateMeta });
         } catch (err) {
             sendJson(res, 400, { error: err.message });
         }
@@ -271,8 +279,13 @@ function startStandalone() {
         }
     });
 
-    standaloneServer.listen(config.port, config.host, () => {
-        console.log(`[${PLUGIN_ID}] Foundry listener on http://${config.host}:${config.port} (auth: ${config.secret ? 'on' : 'OFF'})`);
+    return new Promise((resolve, reject) => {
+        standaloneServer.once('error', reject);
+        standaloneServer.listen(config.port, config.host, () => {
+            standaloneServer.removeListener('error', reject);
+            console.log(`[${PLUGIN_ID}] Foundry listener on http://${config.host}:${standaloneServer.address().port} (auth: ${config.secret ? 'on' : 'OFF'})`);
+            resolve();
+        });
     });
 }
 
@@ -296,16 +309,17 @@ function registerRoutes(router) {
             inboundPending: inbound.length,
             outboundPending: outbound.length,
             lastFoundryContact,
-            hasState: !!latestState,
+            hasState: !!latestSnapshot?.state,
+            stateMeta: snapshot().stateMeta,
         });
     });
 
     router.get('/state', (req, res) => {
-        res.json({ state: latestState, cursor: inboundSeq });
+        res.json({ ...snapshot(), cursor: inboundSeq });
     });
 
     router.get('/inbound', (req, res) => {
-        res.json({ cursor: inboundSeq, items: since(inbound, req.query.since), state: latestState });
+        res.json({ cursor: inboundSeq, items: since(inbound, req.query.since), ...snapshot() });
     });
 
     router.get('/stream', (req, res) => {
@@ -315,7 +329,7 @@ function registerRoutes(router) {
             Connection: 'keep-alive',
             'X-Accel-Buffering': 'no',
         });
-        res.write(`data: ${JSON.stringify({ type: 'hello', cursor: inboundSeq, state: latestState })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'hello', cursor: inboundSeq, ...snapshot() })}\n\n`);
         sseClients.add(res);
 
         const keepAlive = setInterval(() => {
@@ -345,6 +359,8 @@ function registerRoutes(router) {
     router.post('/clear', (req, res) => {
         inbound.length = 0;
         outbound.length = 0;
+        latestSnapshot = null;
+        broadcast({ type: 'state', ...snapshot() });
         res.json({ ok: true });
     });
 }
@@ -355,7 +371,8 @@ function registerRoutes(router) {
 
 async function init(router) {
     registerRoutes(router);
-    startStandalone();
+    if (standaloneServer) throw new Error('Plugin already initialized');
+    await startStandalone();
     console.log(`[${PLUGIN_ID}] ready`);
 }
 
@@ -366,12 +383,14 @@ async function exit() {
     sseClients.clear();
     await new Promise((resolve) => {
         if (!standaloneServer) return resolve();
-        standaloneServer.close(() => resolve());
+        standaloneServer.closeAllConnections?.();
+        standaloneServer.close(() => { standaloneServer = null; resolve(); });
     });
     console.log(`[${PLUGIN_ID}] stopped`);
 }
 
-module.exports = {
+return {
+    address: () => standaloneServer?.address() ?? null,
     init,
     exit,
     info: {
@@ -380,3 +399,7 @@ module.exports = {
         description: 'Receives Lancer combat events from Foundry VTT and relays AI-GM narration back.',
     },
 };
+
+}
+
+module.exports = { ...createPlugin(), createPlugin };

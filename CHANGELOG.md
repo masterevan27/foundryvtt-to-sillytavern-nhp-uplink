@@ -9,6 +9,14 @@ give a release its in-world notes.
 Format for a section:
 
 ```markdown
+## 0.2.1 — Unreleased local candidate
+
+- Retain sender/world/snapshot provenance and receiver-owned event sequence/time.
+- Label recent, stale, unknown, missing and conflicting observations; reject mixed-world/out-of-order snapshot replacement.
+- Refresh observed-state age without new events; failed refreshes and disconnects cannot keep a live-state label.
+- Preserve per-event source identities and distinguish intent or unknown attack outcomes from execution.
+- Add isolated lifecycle and Node transport tests with real HTTP/SSE. No published release is created by these changes.
+
 ## 0.1.9 - Short title
 _2026-09-14_
 

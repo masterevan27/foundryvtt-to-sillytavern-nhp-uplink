@@ -31,12 +31,13 @@
  *   1. A significance gate. Every digest is injected, but only narrative beats
  *      (structure, overheat, a player speaking, a GM directive) spend a
  *      generation. Movement and turn order ride along until the next beat.
- *   2. Board state is injected as a single live block at depth 0 rather than
- *      appended to each digest, so the history holds one current snapshot
+ *   2. Board state is injected as a single observed block at depth 0 rather than
+ *      appended to each digest, so the history holds one timestamped snapshot
  *      instead of one stale snapshot per turn. Depth 0 also keeps it behind
  *      the cached prefix, so it does not invalidate prompt caching.
  */
 
+import { createStateView } from './state-view.mjs';
 import { GM_DIRECTED_TYPES, buildDigest, formatState, weighEvents } from './format.js';
 
 const EXT_ID = 'nhpUplink';
@@ -104,7 +105,8 @@ function requestHeaders() {
 /* ------------------------------------------------------------------ */
 
 let buffer = [];
-let latestState = null;
+const stateView = createStateView();
+let stateAgeTimer = null;
 let quietTimer = null;
 let hardTimer = null;
 let cursor = 0;
@@ -129,16 +131,17 @@ function scheduleDigest() {
     if (!hardTimer) hardTimer = setTimeout(emitDigest, cfg.maxWaitMs);
 }
 
-function acceptEvents(events, state) {
+function acceptEvents(events, payload) {
     const cfg = settings();
     if (!cfg.enabled) return;
-    if (state) latestState = state;
+    stateView.accept(payload);
+    refreshStatePrompt();
 
     for (const e of events) {
         // The GM talking to the AI on purpose is never "table noise", so it
         // survives the combat-only filter. A briefing especially: it is sent
         // *before* the fight, which is exactly when this filter is closed.
-        if (cfg.onlyInCombat && !latestState?.inCombat && !GM_DIRECTED_TYPES.has(e.type)) continue;
+        if (cfg.onlyInCombat && !stateView.current().state?.inCombat && !GM_DIRECTED_TYPES.has(e.type)) continue;
         buffer.push(e);
     }
     if (buffer.length) {
@@ -148,27 +151,26 @@ function acceptEvents(events, state) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Live board state                                                    */
+/* Observed board state                                                    */
 /* ------------------------------------------------------------------ */
 
 /**
  * Keep exactly one board state in the prompt, at depth 0.
  *
- * Depth 0 puts it after the whole conversation, which means (a) it never goes
- * stale in the history and (b) it sits inside the uncached tail, so refreshing
- * it every turn costs nothing in prompt-cache hits.
+ * Depth 0 keeps one received snapshot in the uncached tail. Its timestamp and
+ * freshness label are refreshed every second even without incoming events.
  */
 function refreshStatePrompt() {
     const cfg = settings();
     const c = ctx();
     if (typeof c.setExtensionPrompt !== 'function') return;
 
-    if (!cfg.enabled || !cfg.includeState || !latestState) {
+    if (!cfg.enabled || !cfg.includeState) {
         c.setExtensionPrompt(EXT_ID, '', IN_CHAT, 0, false, ROLE_SYSTEM);
         return;
     }
 
-    const text = `[FOUNDRY VTT // LIVE BOARD STATE]\n${formatState(latestState)}`;
+    const text = stateView.format(formatState);
     c.setExtensionPrompt(EXT_ID, text, IN_CHAT, 0, false, ROLE_SYSTEM);
 }
 
@@ -286,16 +288,19 @@ function connect() {
                 const payload = JSON.parse(msg.data);
                 if (payload.type === 'hello') {
                     cursor = payload.cursor ?? 0;
-                    if (payload.state) {
-                        latestState = payload.state;
-                        refreshStatePrompt();
-                    }
+                    stateView.accept(payload);
+                    refreshStatePrompt();
+                    return;
+                }
+                if (payload.type === 'state') {
+                    stateView.accept(payload);
+                    refreshStatePrompt();
                     return;
                 }
                 if (payload.type === 'events') {
                     const events = payload.events ?? [];
                     if (events.length) cursor = events[events.length - 1].seq ?? cursor;
-                    acceptEvents(events, payload.state);
+                    acceptEvents(events, payload);
                 }
             } catch (err) {
                 console.error('[nhp-uplink] bad SSE payload', err);
@@ -303,6 +308,8 @@ function connect() {
         };
 
         source.onerror = () => {
+            stateView.disconnect();
+            refreshStatePrompt();
             updateStatus('stream interrupted, retrying...');
             // EventSource retries on its own; nothing to do here.
         };
@@ -313,6 +320,8 @@ function connect() {
 }
 
 function disconnect() {
+    stateView.disconnect();
+    refreshStatePrompt();
     if (source) {
         source.close();
         source = null;
@@ -400,7 +409,7 @@ const PANEL_HTML = `
       <input id="fb_maxUngenerated" class="text_pole" type="number" min="1" max="100">
       <hr>
 
-      <label class="checkbox_label"><input id="fb_includeState" type="checkbox"><span>Inject live board state</span></label>
+      <label class="checkbox_label"><input id="fb_includeState" type="checkbox"><span>Inject observed board state</span></label>
       <label class="checkbox_label"><input id="fb_onlyInCombat" type="checkbox"><span>Only relay during combat</span></label>
       <label class="checkbox_label"><input id="fb_relayReplies" type="checkbox"><span>Relay AI replies back to Foundry chat</span></label>
 
@@ -486,18 +495,14 @@ function bindControls() {
     });
 
     document.getElementById('fb_state').addEventListener('click', async () => {
-        const res = await fetch(`${API}/state`, { headers: requestHeaders() });
-        const payload = await res.json();
-        latestState = payload.state ?? latestState;
-        if (!latestState) {
-            updateStatus('no board state received from Foundry yet');
+        const result = await stateView.refresh(() => fetch(`${API}/state`, { headers: requestHeaders() }));
+        refreshStatePrompt();
+        if (!result.ok) {
+            updateStatus(`state refresh failed: ${result.error}; retained state is historical`);
             return;
         }
-        // The manual insert is the full sheet, statics included -- it is a
-        // one-off reference drop, not the recurring block.
-        await injectMessage(`[FOUNDRY VTT // BOARD STATE]\n\n${formatState(latestState, true)}`, settings());
-        refreshStatePrompt();
-        updateStatus('board state inserted');
+        await injectMessage(stateView.format(formatState, true), settings());
+        updateStatus(`board state inserted (${stateView.current().stateMeta.status})`);
     });
 }
 
@@ -529,6 +534,8 @@ jQuery(async () => {
     });
 
     connect();
+    if (stateAgeTimer) clearInterval(stateAgeTimer);
+    stateAgeTimer = setInterval(refreshStatePrompt, 1000);
 
     try {
         const res = await fetch(`${API}/status`, { headers: requestHeaders() });

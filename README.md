@@ -43,12 +43,20 @@ narration back up.
 * Sunzi gains IMPAIRED
 [Blackbeard]: "Falling back to the ridge, cover me."
 
+[FOUNDRY VTT // BOARD STATE RECENT]
+Source: foundry; world: Karrakin Trade Baronies (kt-baronies).
+Snapshot: 2026-09-07T20:14:03Z; received: 2026-09-07T20:14:03Z; age: 4s; recent_observation_not_live_query.
+This is a received historical observation, not a live query. Intent is not execution.
 BOARD STATE - Round 3, active: Blackbeard
 ALLIED:
   Blackbeard  <ACTIVE>  HP 18/18  Heat 4/6  Str 4/4  Stress 4/4  Armor 1  Ev 8  EDef 8  @(12,7)
 HOSTILE:
   Sunzi  HP 13/22  Str 0/1  Stress 1/1  Ev 8  EDef 10  [IMPAIRED]  @(15,9)
 ```
+
+_Every feed line also carries a one-line provenance stamp naming its source
+world, event id and receive time. They are left out above so the shape of the
+digest stays readable; [Architecture](#architecture) shows the real thing._
 
 ---
 
@@ -266,9 +274,18 @@ Edit `config.json` and set `secret` to a random string of your own:
   "host": "127.0.0.1",
   "secret": "<a random string you generate>",
   "maxQueue": 500,
-  "logEvents": false
+  "logEvents": false,
+  "staleAfterMs": 60000,
+  "maxClockSkewMs": 5000
 }
 ```
+
+The last two decide how the plugin labels board state. `staleAfterMs` is how
+long a snapshot still counts as **recent** before the prompt calls it **stale**;
+`maxClockSkewMs` is how far your Foundry machine's clock may run ahead of
+SillyTavern's before a snapshot is called **unknown** rather than trusted. The
+defaults suit a table on one LAN. Raise `staleAfterMs` if your group takes long
+turns and you would rather the AI keep treating the roster as current.
 
 Then enable server plugins in SillyTavern's `config.yaml`:
 
@@ -458,7 +475,7 @@ fragments.
   stress, burn and overshield.
 - **Statuses** — conditions gained and lost.
 - **Movement** — coalesced per token, reported in grid spaces. **Off by default**:
-  it is the highest-volume, lowest-value event, and the live board state already
+  it is the highest-volume, lowest-value event, and the board state already
   reports where every token ended up. Enable it if you want movement narrated,
   and use **Minimum move to report** to ignore small repositioning.
 - **Player chat** — in-character and out-of-character.
@@ -812,7 +829,13 @@ them at different points:
 | ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `foundry-module/…/module.json`                         | Fetched as a **release asset** by Foundry          | `version`, plus a `download` URL pinned to the tag and a `manifest` URL pointing at `latest` |
 | `st-ui-extension/…/manifest.json`                    | Mirrored to the **extension repo** and installed from there | `version` and `homePage`                                                            |
-| `st-server-plugin/…/index.js`                        | Copied in by hand                                  | `PLUGIN_VERSION`, the version it reports to the UI extension                                 |
+| `st-server-plugin/…/index.js`                        | Copied in by hand                                  | **Nothing — it is not stamped.** `PLUGIN_VERSION` is set by hand                             |
+
+`PLUGIN_VERSION` in the server plugin is the exception, and the only version in
+this repo you have to set yourself. Nothing in the workflow reads or writes it,
+so bump it in the same commit as the work it describes. It is what the plugin
+reports to the UI extension, and a stale value there misnames the build someone
+is actually running.
 
 Both stamped files are then committed to `main` in the same `release: vX.Y.Z`
 commit, and that commit is what gets tagged. The extension manifest _has_ to be

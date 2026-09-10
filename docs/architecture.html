@@ -366,7 +366,7 @@
 
           <rect class="s-sunk" x="338" y="212" width="244" height="60" rx="2"/>
           <text class="s-title" x="350" y="232">Queues</text>
-          <text class="s-note"  x="350" y="249">inbound events + latest board state</text>
+          <text class="s-note"  x="350" y="249">inbound events + labelled board state</text>
           <text class="s-note"  x="350" y="263">outbound narration, maxQueue 500</text>
 
           <rect class="s-sunk" x="338" y="288" width="244" height="72" rx="2"/>
@@ -388,7 +388,7 @@
           <text class="s-sub"  x="730" y="148">sillytavern-foundryvtt-input</text>
           <text class="s-item" x="730" y="168">builds the table-feed digest</text>
           <text class="s-item" x="730" y="187">setExtensionPrompt() holds</text>
-          <text class="s-item" x="730" y="206">live board state, in-chat</text>
+          <text class="s-item" x="730" y="206">observed board state, in-chat</text>
           <rect class="s-sunk" x="730" y="220" width="188" height="54" rx="2"/>
           <text class="s-note" x="740" y="238">mode: auto / manual / observe</text>
           <text class="s-note" x="740" y="253">cooldown + backlog gate before</text>
@@ -501,8 +501,11 @@
         <div>
           <b><code>POST /event</code> to port 5088</b>
           <p>
-            Cross-origin, carrying <code>X-Uplink-Key</code>. The plugin appends to its inbound queue,
-            replaces the stored board state, and broadcasts to every connected stream.
+            Cross-origin, carrying <code>X-Uplink-Key</code>. The plugin appends to its inbound queue and
+            broadcasts to every connected stream. It stamps its own receive time and sequence over
+            whatever the sender supplied, and the snapshot replaces the stored one only if it belongs
+            to the same world and is not older than what is already held &mdash; otherwise the previous
+            state stands and the payload is recorded as a conflict.
           </p>
         </div>
       </li>
@@ -520,9 +523,11 @@
           <b>The extension writes into the chat</b>
           <p>
             The digest is pushed into the chat as a message &mdash; as you, or as the narrator, depending
-            on settings &mdash; while the live board state goes in separately through
-            <code>setExtensionPrompt()</code>, so it is always current rather than accumulating stale
-            copies down the log.
+            on settings &mdash; while the board state goes in separately through
+            <code>setExtensionPrompt()</code>, so the log holds one snapshot rather than accumulating
+            stale copies. That snapshot is labelled with its source world, the time it was taken and
+            how old it now is; the age is recomputed every second, so it decays into
+            <b>STALE</b> on its own when Foundry goes quiet or the stream drops.
           </p>
         </div>
       </li>
@@ -559,25 +564,37 @@
     </ol>
 
     <div class="feed"><span class="hdr">[FOUNDRY VTT // TABLE FEED]</span>
+<span class="dim">Received observations only. Do not merge different source worlds. Speech, directives and intent do not establish execution; rolls establish only reported totals/outcomes, not unreported damage or actor changes.</span>
 
+<span class="dim">[Source foundry; world kt-baronies; event mk2f9q-38; sender 2026-09-07T20:13:58Z; received 2026-09-07T20:14:03Z; receiver seq 214]</span>
 <span class="dim">--- ROUND 3 ---</span>
+<span class="dim">[Source foundry; world kt-baronies; event mk2f9q-39; sender 2026-09-07T20:13:59Z; received 2026-09-07T20:14:03Z; receiver seq 215]</span>
 &gt; Blackbeard [friendly] takes their turn.
+<span class="dim">[Source foundry; world kt-baronies; event mk2f9q-40; &hellip; receiver seq 216]</span>
 * Blackbeard: Weapon Attack - Assault Rifle
     ATTACK
     18 vs EVASION 8
     HIT
     9 Kinetic
+<span class="dim">[Source foundry; world kt-baronies; event mk2f9q-41; &hellip; receiver seq 217]</span>
 * Sunzi: HP 22 -&gt; 13/22 (-9)
+<span class="dim">[Source foundry; world kt-baronies; event mk2f9q-42; &hellip; receiver seq 218]</span>
 * Sunzi gains IMPAIRED
 
-<span class="dim">BOARD STATE - Round 3, active: Blackbeard</span>
+<span class="dim">[FOUNDRY VTT // BOARD STATE RECENT]
+Source: foundry; world: Karrakin Trade Baronies (kt-baronies).
+Snapshot: 2026-09-07T20:14:03Z; received: 2026-09-07T20:14:03Z; age: 4s; recent_observation_not_live_query.
+This is a received historical observation, not a live query. Intent is not execution.
+BOARD STATE - Round 3, active: Blackbeard</span>
 ALLIED:
   Blackbeard  &lt;ACTIVE&gt;  HP 18/18  Heat 4/6  Ev 8  EDef 8  @(12,7)
 HOSTILE:
   Sunzi  HP 13/22  Str 0/1  Ev 8  EDef 10  [IMPAIRED]  @(15,9)</div>
     <figcaption>
       What arrives on the card at step 5. Foundry stays the authority on mechanics &mdash; the model is
-      handed a faithful account of what already happened and asked only for fiction.
+      handed a faithful account of what already happened and asked only for fiction. Every line carries
+      its own provenance stamp so two worlds cannot be read as one; the later stamps are abbreviated
+      here, but nothing is elided in the real feed.
     </figcaption>
   </section>
 
@@ -609,7 +626,7 @@ HOSTILE:
           <td><code>GET /stream</code></td>
           <td>ST plugin router</td>
           <td>UI extension</td>
-          <td>SSE: hello, then events</td>
+          <td>SSE: hello, events, state</td>
         </tr>
         <tr>
           <td><code>POST /narration</code></td>
@@ -621,7 +638,7 @@ HOSTILE:
           <td><code>GET /state</code>, <code>/inbound</code></td>
           <td>ST plugin router</td>
           <td>UI extension</td>
-          <td>latest board state, backlog</td>
+          <td>board state + freshness label, backlog</td>
         </tr>
         <tr>
           <td><code>GET /status</code>, <code>POST /clear</code></td>
@@ -765,6 +782,11 @@ HOSTILE:
           <td>Title block only &mdash; it mirrors <code>module.json</code></td>
         </tr>
         <tr>
+          <td>The freshness policy &mdash; <code>staleAfterMs</code>, <code>maxClockSkewMs</code>, or the
+              set of state labels</td>
+          <td>Steps 3 and 5, the sample prompt, and the wire reference</td>
+        </tr>
+        <tr>
           <td>The <code>/importer/*</code> contract</td>
           <td>Figure 2, and the Import GUI repo, together &mdash; never one alone</td>
         </tr>
@@ -780,7 +802,7 @@ HOSTILE:
 
   <footer>
     <span>foundryvtt-to-sillytavern-nhp-uplink &middot; docs/architecture.html</span>
-    <span>Module 0.2.0 &middot; revised 2026-09-07</span>
+    <span>Module 0.2.0 &middot; revised 2026-09-10</span>
   </footer>
 
 </div>

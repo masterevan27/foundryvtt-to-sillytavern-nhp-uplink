@@ -33,6 +33,20 @@ nesting. It is not, and neither are the two beside it:
 
 Do not flatten them.
 
+## Do not hand-edit the manifest versions
+
+`module.json` and `manifest.json` declare the **last released** version, and
+`release.yml` is what changes them: it stamps the version typed into **Run
+workflow** into both, commits them as `release: vX.Y.Z`, and tags that commit.
+A number edited by hand is overwritten on that path, and fails the build on a
+hand-pushed tag, where CI can only verify. Write the notes for unreleased work
+in `CHANGELOG.md` instead — a section above the newest one, below the
+`---` rule, never inside the fenced `Format for a section` example, which
+`tools/build-changelog.mjs` strips before parsing.
+
+`PLUGIN_VERSION` in the server plugin's `index.js` is the exception. Nothing
+in CI touches it, so bump it by hand alongside the work it describes.
+
 ## Running the tests
 
 The transport suite runs with `node --test tests/*.test.mjs tests/*.test.cjs`
@@ -58,7 +72,7 @@ Several files here are large enough that reading them whole is wasteful:
 
 | File | Size |
 |---|---|
-| `README.md` | ~890 lines |
+| `README.md` | ~910 lines |
 
 Read the section, route or function you need. `README.md` has a heading every
 30-60 lines, so it scopes cleanly.

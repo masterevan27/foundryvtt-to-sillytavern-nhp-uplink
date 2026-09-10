@@ -9,14 +9,6 @@ give a release its in-world notes.
 Format for a section:
 
 ```markdown
-## 0.2.1 — Unreleased local candidate
-
-- Retain sender/world/snapshot provenance and receiver-owned event sequence/time.
-- Label recent, stale, unknown, missing and conflicting observations; reject mixed-world/out-of-order snapshot replacement.
-- Refresh observed-state age without new events; failed refreshes and disconnects cannot keep a live-state label.
-- Preserve per-event source identities and distinguish intent or unknown attack outcomes from execution.
-- Add isolated lifecycle and Node transport tests with real HTTP/SSE. No published release is created by these changes.
-
 ## 0.1.9 - Short title
 _2026-09-14_
 
@@ -34,6 +26,35 @@ no section at all, the workflow falls back to the commit subjects since the
 previous tag, so the dialog always has something to say.
 
 ---
+
+## 0.4.0 - The board state says when it was taken
+
+The AI GM used to be handed the roster under a heading that said LIVE, with
+nothing to say when it was taken or which world it came from. If Foundry went
+quiet, or the connection dropped mid-fight, the last snapshot sat there looking
+current and the AI narrated from it as though it were still true. Every board
+state now carries its own timestamp, its age, and a plain label saying whether
+it is still worth trusting.
+
+- The recurring block is headed **BOARD STATE RECENT**, **STALE**, **UNKNOWN**
+  or **CONFLICT**, and names the world it came from and how old it is. The age
+  keeps counting up on its own, so a table that has gone quiet for ten minutes
+  says so instead of looking freshly reported.
+- If the stream drops, or the **Insert board state** button cannot reach the
+  server, the state you already have is kept but marked stale. It never holds
+  on to a fresh label it has not earned.
+- A snapshot from a different world, or one older than the one already held, is
+  refused rather than allowed to overwrite it. Two Foundry worlds pointed at one
+  SillyTavern can no longer blend into a single roster.
+- An attack roll that arrives with no reported outcome now reads **OUTCOME
+  UNREPORTED** instead of being called a miss, and a player saying what they
+  mean to do is marked as not yet done. The AI was reading both as settled fact.
+- The setting is now called **Inject observed board state**, which is what it
+  has always actually sent.
+- Two new keys in the server plugin's `config.json`: `staleAfterMs` (default
+  60000) is how long a snapshot counts as recent, and `maxClockSkewMs` (default
+  5000) is how far apart your two machines' clocks may drift before a snapshot
+  is called unknown rather than trusted.
 
 ## 0.3.0 - The Import GUI moves out
 

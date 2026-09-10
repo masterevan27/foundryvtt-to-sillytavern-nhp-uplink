@@ -42,7 +42,7 @@ const PLUGIN_ID = 'sillytavern-foundryvtt-input';
 
 // Stamped by the release workflow. Reported to the UI extension so a mismatch
 // can name the version the user actually has, instead of just failing.
-const PLUGIN_VERSION = '0.2.1';
+const PLUGIN_VERSION = '0.4.0';
 
 /*
  * Wire-contract version, shared with the UI extension. Bump it ONLY when a

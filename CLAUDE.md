@@ -38,8 +38,10 @@ Do not flatten them.
 `module.json` and `manifest.json` declare the **last released** version, and
 `release.yml` is what changes them: it stamps the version typed into **Run
 workflow** into both, commits them as `release: vX.Y.Z`, and tags that commit.
-A number edited by hand is overwritten on that path, and fails the build on a
-hand-pushed tag, where CI can only verify. Write the notes for unreleased work
+A number edited by hand is overwritten on that path. On a hand-pushed tag CI
+can only verify, and only `manifest.json` is verified: a mismatch there fails
+the build, while `module.json` is silently re-stamped on the runner and never
+compared against the tag. Write the notes for unreleased work
 in `CHANGELOG.md` instead — a section above the newest one, below the
 `---` rule, never inside the fenced `Format for a section` example, which
 `tools/build-changelog.mjs` strips before parsing.
@@ -56,8 +58,10 @@ SillyTavern. The Import GUI suite remains in its separate repository at
 <https://github.com/masterevan27/lancer-npc-import-gui>.
 
 What CI does check here, in `.github/workflows/release.yml` at release time:
-both manifests parse and declare the version being cut, every file they
-reference exists, and every `esmodule` passes `node --check`. You can run
+both manifests parse, the extension's `manifest.json` declares the version
+being cut (`module.json` is stamped with it rather than checked), every file
+they reference exists, `changelog.json` has an entry for the version, and every
+`esmodule` passes `node --check`. No tests run in CI. You can run
 that last check yourself:
 
 ```bash

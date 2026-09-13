@@ -347,8 +347,8 @@
           <text class="s-item" x="32" y="206">statuses, token movement</text>
           <text class="s-item" x="32" y="225">board-state snapshot</text>
           <rect class="s-sunk" x="32" y="240" width="158" height="40" rx="2"/>
-          <text class="s-note" x="42" y="257">buffered, flushed after</text>
-          <text class="s-note" x="42" y="271">2.5s of table quiet</text>
+          <text class="s-note" x="42" y="257">batched on a 450ms</text>
+          <text class="s-note" x="42" y="271">debounce, then sent</text>
           <line x1="32" y1="298" x2="190" y2="298" stroke="var(--rule)" stroke-width="1"/>
           <text class="s-sub"  x="32" y="318">ChatMessage.create()</text>
           <text class="s-item" x="32" y="338">AI-GM narration posted</text>
@@ -489,10 +489,11 @@
       </li>
       <li>
         <div>
-          <b>Events buffer, then flush</b>
+          <b>Events batch, then flush</b>
           <p>
-            Nothing is sent per-hook. Events collect until the table has been quiet for 2.5 seconds, then
-            go out together with a fresh board-state snapshot. Only the primary active GM&#8217;s client
+            Nothing is sent per-hook. Events collect for a 450ms debounce &mdash; just long enough for a
+            flow and its chat card to leave together &mdash; then go out with a fresh board-state
+            snapshot. The 2.5-second quiet period comes later, in the UI extension (step 5). Only the primary active GM&#8217;s client
             transmits, so a second GM at the table does not duplicate the feed.
           </p>
         </div>
@@ -522,7 +523,8 @@
         <div>
           <b>The extension writes into the chat</b>
           <p>
-            The digest is pushed into the chat as a message &mdash; as you, or as the narrator, depending
+            Arriving events are held until the table has been quiet for 2.5 seconds (never longer than
+            15), then built into one digest. The digest is pushed into the chat as a message &mdash; as you, or as the narrator, depending
             on settings &mdash; while the board state goes in separately through
             <code>setExtensionPrompt()</code>, so the log holds one snapshot rather than accumulating
             stale copies. That snapshot is labelled with its source world, the time it was taken and
@@ -649,8 +651,11 @@ HOSTILE:
       </tbody>
     </table>
     <p style="margin-top:20px">
-      Every <span class="port a">:5088</span> request carries <code>X-Uplink-Key</code>, matched against
-      <code>secret</code> in the plugin&#8217;s <code>config.json</code>. A blank secret disables the check
+      <code>POST /event</code> and <code>GET /outbound</code> carry <code>X-Uplink-Key</code>, matched against
+      <code>secret</code> in the plugin&#8217;s <code>config.json</code>. Two <span class="port a">:5088</span>
+      exceptions answer without it: CORS preflights (<code>OPTIONS</code>) and <code>GET /health</code>,
+      which reports only queue sizes and last contact. The ST plugin router routes never check the
+      secret; they sit behind SillyTavern&#8217;s own session and CSRF middleware. A blank secret disables the check
       entirely and the plugin logs <code>auth: OFF</code> at startup. The listener binds
       <code>127.0.0.1</code>, but the secret still matters: any page you visit can attempt requests to
       localhost, and CORS here has to be permissive because Foundry&#8217;s origin varies by deployment.
@@ -775,7 +780,7 @@ HOSTILE:
         </tr>
         <tr>
           <td>Buffer window, poll interval or generation gate</td>
-          <td>Steps 2 and 6, and the figure&#8217;s inline notes</td>
+          <td>Steps 2, 5 and 6, and the figure&#8217;s inline notes</td>
         </tr>
         <tr>
           <td>Module version or Foundry / Lancer compatibility</td>

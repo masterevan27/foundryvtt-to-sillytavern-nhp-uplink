@@ -137,8 +137,9 @@ https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/releases/la
 
 That covers the Foundry half and enables update checks. The SillyTavern
 extension installs from its own repository URL and the server plugin is copied
-in by hand — see [Install](#install) for all six steps, plus an optional seventh
-for the [Lancer UI theme](#7-lancer-ui-theme-optional).
+in by hand — see [Install](#install) for all six steps, plus two optional ones:
+the [Lancer UI theme](#7-lancer-ui-theme-optional) and the
+[Import GUI](#8-import-gui-optional).
 
 ---
 
@@ -446,8 +447,15 @@ The uplink listener binds to `127.0.0.1` and is not reachable from your network.
 The shared secret still matters: **any web page you visit can attempt requests
 to `localhost`**, and CORS on this listener is permissive by necessity, since
 Foundry's origin varies by deployment. The secret is what stops an arbitrary
-page from injecting fabricated combat events or narration into your game.
+page from injecting fabricated combat events into your game or reading the
+narration queued for Foundry.
 
+- The secret guards `POST /event` and `GET /outbound` on port 5088. `GET /health`
+  and CORS preflights answer without it, and `/health` reports queue sizes and
+  last contact — nothing from the feed itself.
+- The UI extension's routes (`/stream`, `/narration`, `/state` and the rest,
+  under `/api/plugins/…`) never check the secret. They sit behind SillyTavern's
+  own session, CSRF and any whitelist or basic auth you have configured.
 - A blank or missing `secret` disables authentication entirely. The plugin logs
   `auth: OFF` at startup when that happens.
 - `config.json` is gitignored. Never commit it — `config.example.json` is the
@@ -459,9 +467,11 @@ page from injecting fabricated combat events or narration into your game.
 
 ## What gets sent
 
-Events are buffered and flushed once the table has been quiet for 2.5 seconds
-(configurable), so one attack becomes a single coherent digest rather than six
-fragments.
+The Foundry module sends events almost at once — a half-second debounce, just
+long enough for a flow and its chat card to leave together. The buffering
+happens in the SillyTavern extension: it holds what arrives until the table has
+been quiet for 2.5 seconds (configurable, and never longer than 15), so one
+attack becomes a single coherent digest rather than six fragments.
 
 <details>
 <summary>Every event type the module captures</summary>
@@ -689,7 +699,7 @@ stops paying. Keeping digests compact delays that.
 ## Troubleshooting
 
 <details>
-<summary><strong>"Uplink unreachable: Failed to fetch", with no status code.</strong></summary>
+<summary><strong>"SillyTavern uplink unreachable: Failed to fetch", with no status code.</strong></summary>
 
 Almost always the wrong port — Foundry pointed at SillyTavern's web UI instead
 of the uplink listener. SillyTavern's Express app answers the CORS preflight
@@ -725,20 +735,26 @@ The secret in Foundry's settings doesn't match `config.json`.
 <details>
 <summary><strong>Extension status says "not reachable".</strong></summary>
 
-The UI extension reaches the plugin through SillyTavern itself, so this means the
-plugin isn't loaded — same fix as above.
+The extension's status request never got an answer at all — SillyTavern itself
+stopped responding, usually because the server was restarted or shut down under
+the open tab. Get the server back up and reload the browser.
 
 </details>
 
 <details>
 <summary><strong>Extension status says "out of date" or "version mismatch".</strong></summary>
 
-The plugin _is_ loaded; the two halves are just at different versions. This is
-the expected failure now that the UI extension auto-updates itself from its own
-repo while the server plugin is still copied in by hand — so the extension can
-move ahead on its own and leave the plugin behind. Re-copy `st-server-plugin/…`
-into SillyTavern's `plugins/` folder and restart the server. Do **not** go
-looking at `enableServerPlugins` for this one; loading was never the problem.
+**"out of date"** means the plugin's status route came back 404. SillyTavern
+returns that for a plugin that never loaded as well as for an old one, so first
+check the console for the plugin's `ready` line from install step 2 — if it is
+missing, the fix is under **Plugin didn't load** above.
+
+**"version mismatch"** means the plugin _is_ loaded; the two halves are just at
+different versions. This is the expected failure now that the UI extension
+auto-updates itself from its own repo while the server plugin is still copied in
+by hand — so the extension can move ahead on its own and leave the plugin
+behind. Re-copy `st-server-plugin/…` into SillyTavern's `plugins/` folder and
+restart the server.
 
 </details>
 
@@ -887,7 +903,10 @@ git push origin v0.1.5
 ```
 
 If the manifest does not already declare the tag's version, the build fails
-rather than shipping a wrong number.
+rather than shipping a wrong number. That check covers the extension's
+`manifest.json` only: `module.json` is stamped on the runner either way and is
+never compared against the tag, so the released asset is right even when the
+tagged tree's copy is not. Bump it too if you want the two to agree.
 
 The tag must also point at a commit that _contains_
 `.github/workflows/release.yml`. Tagging an earlier commit produces no release

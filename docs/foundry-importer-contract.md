@@ -1,8 +1,8 @@
 # The Foundry importer contract
 
-`scripts/importer.js` in this repo consumes the `/importer/*` routes served by
-[lancer-npc-import-gui](https://github.com/masterevan27/lancer-npc-import-gui),
-which ships inside `module.zip`. The two live in different repositories and
+`scripts/importer.js` in this repo, which ships inside `module.zip`, consumes the
+`/importer/*` routes served by
+[lancer-npc-import-gui](https://github.com/masterevan27/lancer-npc-import-gui). The two live in different repositories and
 version independently, and a released module is already installed in worlds
 nobody here can update.
 

@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Since merged (checked 2026-09-17).** The work is on `main` as
+> `6b7fb0e`..`8fbda07`, and `main` is pushed. The
+> `worktree-repo-hygiene-and-extraction` branch and its worktree no longer
+> exist, and the short SHAs quoted below were rewritten on the way to `main`,
+> so they do not resolve here. The import-gui-server suite's `test.yml` left
+> this repo with the Import GUI (see the extraction plan), so the only
+> workflow here now is `release.yml`. The status paragraph describes the state
+> on 2026-09-01.
+
 **Status:** Complete. All seven tasks landed directly on
 `worktree-repo-hygiene-and-extraction` (commits `e549c6d`..`f65d389`) — the
 worktree this plan was executed from, not a new `repo-hygiene-and-ci` branch

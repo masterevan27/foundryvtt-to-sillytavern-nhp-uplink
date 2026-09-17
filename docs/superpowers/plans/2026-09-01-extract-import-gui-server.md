@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Since merged (checked 2026-09-17).** The work is on `main` as `547ba94`
+> ("move the Import GUI server out to its own repo") and `099406c`, and
+> `main` is pushed. `lancer-npc-import-gui` has since been published at
+> `github.com/masterevan27/lancer-npc-import-gui`. The
+> `worktree-extract-import-gui` branch and its worktree no longer exist, and
+> the short SHAs quoted below were rewritten on the way to `main`, so they do
+> not resolve here. The status paragraph and the closing summary describe the
+> state on 2026-09-01.
+
 **Status:** Complete. All five tasks landed on `worktree-extract-import-gui`
 (source commits `00a9525`..`ac41746`; the new repo `lancer-npc-import-gui`
 seeded through `3fe23fe`) — the existing worktree branch, not a new

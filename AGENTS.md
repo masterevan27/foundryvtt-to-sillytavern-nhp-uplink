@@ -4,7 +4,7 @@
 
 Dashboard project ID: foundryvtt-to-sillytavern-nhp-uplink
 
-Use the scoped dashboard check-in endpoint GET http://127.0.0.1:5080/api/checkin?project=foundryvtt-to-sillytavern-nhp-uplink for project context and POST http://127.0.0.1:5080/api/checkin/foundryvtt-to-sillytavern-nhp-uplink/events for project-scoped updates.
+Use the shared `DASHBOARD_BASE_URL` for dashboard requests: GET `DASHBOARD_BASE_URL/api/checkin?project=foundryvtt-to-sillytavern-nhp-uplink` for project context and POST `DASHBOARD_BASE_URL/api/checkin/foundryvtt-to-sillytavern-nhp-uplink/events` for project-scoped updates.
 
 ## Before starting project work
 
@@ -93,10 +93,15 @@ Read the section, route or function you need. `README.md` has a heading every
 
 ## AI agent dashboard updates
 
-When work in this repository is completed, blocked, planned, tested, or found to have stale documentation, update the local AI agent dashboard at `G:\GIT-REPOS\ai-agent-dashboard`. Start it with `node G:\GIT-REPOS\ai-agent-dashboard\server.js` if needed, then use the dashboard API or CLI, for example:
+Do not start the dashboard server automatically. Use the shared dashboard URL configuration in `G:\GIT-REPOS\AGENTS.md`; if it is unavailable, report the exact request and tell the user how to run the dashboard manually.
 
 ```powershell
 node G:\GIT-REPOS\ai-agent-dashboard\dashboard-cli.js add-note --project PROJECT_ID --note "Describe the change and remaining work"
 ```
 
 Use a unique event id for retries. Never edit `ai-agent-dashboard\data\state.json` or `events.jsonl` directly. Record completed, blocked, planned, and documentation work, along with test evidence and source paths. The canonical protocol is in `G:\GIT-REPOS\ai-agent-dashboard\data\README.md`.
+## Release versioning
+
+Read [`docs/VERSIONING.md`](docs/VERSIONING.md) before completing project work.
+It identifies the machine-readable version source and any project-specific
+release automation.

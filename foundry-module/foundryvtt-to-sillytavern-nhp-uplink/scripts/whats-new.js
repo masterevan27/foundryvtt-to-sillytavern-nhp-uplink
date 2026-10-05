@@ -194,7 +194,8 @@ function renderContent(entries, { welcome = false } = {}) {
 
 async function openDialog(entries, { welcome = false } = {}) {
   const content = renderContent(entries, { welcome });
-  const title = welcome ? "Welcome" : "What's New";
+  const moduleTitle = game.modules.get(MOD)?.title ?? "FoundryVTT to SillyTavern NHP Uplink";
+  const title = `${moduleTitle} — ${welcome ? "Welcome" : "What's New"}`;
 
   const DialogV2 = foundry.applications?.api?.DialogV2;
   if (DialogV2) {

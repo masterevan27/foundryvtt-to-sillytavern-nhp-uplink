@@ -27,6 +27,12 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.4.1 - Release notes name their module
+
+- The **What's New** and **Welcome** windows now show **FoundryVTT to
+  SillyTavern NHP Uplink** in the title bar, so you can tell which module the
+  message belongs to.
+
 ## 0.4.0 - The board state says when it was taken
 
 The AI GM used to be handed the roster under a heading that said LIVE, with

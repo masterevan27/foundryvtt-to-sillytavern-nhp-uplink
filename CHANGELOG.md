@@ -32,6 +32,11 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.4.3 - CI maintenance
+_2026-10-09_
+
+- Run documentation validation with checkout v7, setup-node v7 and Node 24.
+
 ## 0.4.2 - Documentation navigation
 
 - Project guides now have a linked documentation index and pinned checks to keep

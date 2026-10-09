@@ -36,6 +36,8 @@ status prose, dates, acceptance gaps and historical plans are preserved. Dashboa
 task state and roadmap progress remain authoritative; no roadmap delivery is
 claimed by this conversion.
 
+CI uses `actions/checkout@v7`, `actions/setup-node@v7` and Node 24.
+
 ## Documents retained outside the bundle
 
 - [CHANGELOG.md](../CHANGELOG.md) — Metadata added; retained at its established path.

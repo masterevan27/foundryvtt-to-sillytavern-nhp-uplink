@@ -1,0 +1,20 @@
+name: Documentation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  okf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --prefix .okf/tools --ignore-scripts --no-audit --no-fund
+      - run: node .okf/tools/cli.mjs check .
+      - run: node .okf/check-external.mjs

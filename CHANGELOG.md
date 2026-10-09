@@ -1,3 +1,8 @@
+---
+type: "Reference"
+title: "Changelog"
+description: "Reference notes and context for Changelog."
+---
 # Changelog
 
 Notes here are written for the people playing, not for contributors — the
@@ -26,6 +31,11 @@ no section at all, the workflow falls back to the commit subjects since the
 previous tag, so the dialog always has something to say.
 
 ---
+
+## 0.4.2 - Documentation navigation
+
+- Project guides now have a linked documentation index and pinned checks to keep
+  their structure and local links consistent.
 
 ## 0.4.1 - Release notes name their module
 

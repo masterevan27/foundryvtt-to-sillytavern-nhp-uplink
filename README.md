@@ -935,3 +935,8 @@ licence.
 
 LANCER is a trademark of Massif Press. This is an unofficial community tool with
 no affiliation to Massif Press, Foundry Gaming LLC, or the SillyTavern project.
+
+## Documentation bundle
+
+Start at [docs/index.md](docs/index.md). Follow the pinned metadata and validation
+workflow in [docs/OKF.md](docs/OKF.md) when maintaining project documentation.

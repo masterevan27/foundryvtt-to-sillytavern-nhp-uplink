@@ -1,3 +1,8 @@
+---
+type: "Design"
+title: "Repo Structure Audit — Design"
+description: "Design decisions and requirements for Repo Structure Audit."
+---
 # Repo Structure Audit — Design
 
 **Status:** Split outcome. Findings 1-5 (the hygiene plan) are fixed, landed on

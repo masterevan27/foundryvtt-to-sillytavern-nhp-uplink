@@ -1,0 +1,2 @@
+# Keep text checkouts portable between Windows and the Linux containers.
+* text=auto eol=lf

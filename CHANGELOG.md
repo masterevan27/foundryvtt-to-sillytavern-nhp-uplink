@@ -32,6 +32,11 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.4.4 - Portable extension updates
+
+- Keep source and mirrored extension text files on LF line endings across
+  Windows and Linux, preventing line-ending-only changes from blocking updates.
+
 ## 0.4.3 - CI maintenance
 _2026-10-09_
 

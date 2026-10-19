@@ -72,3 +72,6 @@ build/
 # but committing it would mean two copies of the notes, which is how they drift.
 foundry-module/foundryvtt-to-sillytavern-nhp-uplink/changelog.json
 
+
+# Local Obsidian settings
+.obsidian/

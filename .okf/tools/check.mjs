@@ -72,6 +72,11 @@ function metadataChecks(doc, now, add) {
         }
     }
     if (m.type === 'Attested Computation' && !nonempty(m.runtime)) add('runtime', 'An Attested Computation needs runtime.');
+    if (m.status !== 'deprecated') {
+        if (!('generated' in m)) add('provenance', 'Record generated.by and generated.at for the current content.', 'warning');
+        if (m.type === 'Runbook' && !('sources' in m)) add('evidence', 'Cite the code, scripts or references this runbook describes in sources.', 'warning');
+        if (m.type === 'Runbook' && !('stale_after' in m)) add('freshness', 'Give this runbook a stale_after review deadline.', 'warning');
+    }
 }
 
 function indexListings(body, add) {

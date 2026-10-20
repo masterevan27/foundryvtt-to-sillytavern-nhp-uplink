@@ -2,6 +2,30 @@
 type: "Reference"
 title: "Versioning"
 description: "Release version source, increment rules and automation for this repository."
+status: stable
+tags:
+  - documentation
+  - versioning
+sources:
+  - id: release-workflow
+    resource: ../.github/workflows/release.yml
+    title: Release workflow that stamps and validates versions
+  - id: module-manifest
+    resource: ../foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json
+    title: Foundry module manifest version
+  - id: extension-manifest
+    resource: ../st-ui-extension/sillytavern-foundryvtt-input/manifest.json
+    title: SillyTavern UI extension manifest version
+  - id: server-plugin-version
+    resource: ../st-server-plugin/sillytavern-foundryvtt-input-server-plugin/index.js
+    title: Server plugin PLUGIN_VERSION exception
+  - id: changelog
+    resource: ../CHANGELOG.md
+    title: Player-facing changelog
+generated:
+  by: codex/unrecorded
+  at: 2026-10-09T15:59:41-04:00
+stale_after: 2027-01-07T00:00:00Z
 ---
 # Versioning
 

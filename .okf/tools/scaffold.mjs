@@ -78,9 +78,9 @@ export function init(project) {
     const files = new Map();
     files.set('.okf.json', `${JSON.stringify({ profile: profile.profile, bundle: 'docs', legacy: {}, missingLinks: {} }, null, 2)}\n`);
     files.set('.okf/.gitignore', 'tools/node_modules/\n');
-    files.set('docs/overview.md', '---\ntype: Reference\ntitle: Project documentation\ndescription: Entry point for maintained project knowledge.\nstatus: draft\n---\n# Project documentation\n\nDescribe the project purpose, supported usage and links to its architecture and\nrunbooks. Replace this starter with project-specific facts before marking it stable.\n');
+    files.set('docs/overview.md', '---\ntype: Reference\ntitle: Project documentation\ndescription: Entry point for maintained project knowledge.\nstatus: draft\ngenerated:\n  by: process:okf-init\n---\n# Project documentation\n\nDescribe the project purpose, supported usage and links to its architecture and\nrunbooks. Replace this starter with project-specific facts before marking it stable.\n');
     files.set('docs/index.md', `---\nokf_version: "${profile.okfVersion}"\n---\n${marker}\n\n# Documentation\n\n- [Project documentation](overview.md) - Entry point for maintained project knowledge.\n`);
-    files.set('.github/workflows/okf.yml', `name: Documentation\n\non:\n  push:\n  pull_request:\n\npermissions:\n  contents: read\n\njobs:\n  okf:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n      - run: npm ci --prefix .okf/tools --ignore-scripts --no-audit --no-fund\n      - run: node .okf/tools/cli.mjs check .\n`);
+    files.set('.github/workflows/okf.yml', `name: Documentation\n\non:\n  push:\n  pull_request:\n\npermissions:\n  contents: read\n\njobs:\n  okf:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v7\n      - uses: actions/setup-node@v7\n        with:\n          node-version: 24\n      - run: npm ci --prefix .okf/tools --ignore-scripts --no-audit --no-fund\n      - run: node .okf/tools/cli.mjs check .\n`);
     for (const file of runtimeFiles) files.set(`.okf/tools/${file}`, fs.readFileSync(path.join(toolDirectory, file)));
     // Read every source and validate every destination before the first write.
     for (const relative of files.keys()) {

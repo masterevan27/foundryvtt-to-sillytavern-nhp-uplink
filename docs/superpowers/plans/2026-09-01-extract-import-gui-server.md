@@ -2,6 +2,13 @@
 type: "Plan"
 title: "Extract the Import GUI Into Its Own Repo Implementation Plan"
 description: "Implementation steps and constraints for Extract the Import GUI Into Its Own Repo."
+status: stable
+tags:
+  - importer
+  - repository
+generated:
+  by: claude-code/claude-opus-5
+  at: 2026-09-17T01:28:04-04:00
 ---
 # Extract the Import GUI Into Its Own Repo Implementation Plan
 

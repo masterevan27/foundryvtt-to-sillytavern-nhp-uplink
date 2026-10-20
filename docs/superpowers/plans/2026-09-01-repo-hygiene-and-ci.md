@@ -2,6 +2,13 @@
 type: "Plan"
 title: "Repo Hygiene and CI Implementation Plan"
 description: "Implementation steps and constraints for Repo Hygiene and CI."
+status: stable
+tags:
+  - repository
+  - ci
+generated:
+  by: claude-code/claude-opus-5
+  at: 2026-09-17T01:28:04-04:00
 ---
 # Repo Hygiene and CI Implementation Plan
 

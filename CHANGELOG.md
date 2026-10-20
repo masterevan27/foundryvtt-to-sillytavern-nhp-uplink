@@ -32,6 +32,12 @@ previous tag, so the dialog always has something to say.
 
 ---
 
+## 0.4.5 - Documentation metadata
+
+- Project guides now record who wrote them, their lifecycle, tags, the code
+  they describe and when they are due for review, under house profile 1.1.0.
+  No guide is marked as reviewed yet.
+
 ## 0.4.4 - Portable extension updates
 
 - Keep source and mirrored extension text files on LF line endings across

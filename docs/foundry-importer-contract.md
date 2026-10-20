@@ -2,6 +2,25 @@
 type: "Reference"
 title: "The Foundry importer contract"
 description: "Request, asset and actor contracts shared by the GUI and Foundry importer."
+status: stable
+tags:
+  - importer
+  - foundry-module
+  - api
+sources:
+  - id: importer-client
+    resource: https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/blob/d908799340acbe4506e5da38b7c9ba8deeb963dc/foundry-module/foundryvtt-to-sillytavern-nhp-uplink/scripts/importer.js
+    title: Foundry importer client
+  - id: module-manifest
+    resource: https://github.com/masterevan27/foundryvtt-to-sillytavern-nhp-uplink/blob/d908799340acbe4506e5da38b7c9ba8deeb963dc/foundry-module/foundryvtt-to-sillytavern-nhp-uplink/module.json
+    title: Foundry module manifest
+  - id: import-gui-repo
+    resource: https://github.com/masterevan27/lancer-npc-import-gui
+    title: lancer-npc-import-gui, which serves the importer routes
+generated:
+  by: claude-code/claude-opus-5
+  at: 2026-09-12T20:58:53-04:00
+stale_after: 2026-12-11T00:00:00Z
 ---
 # The Foundry importer contract
 

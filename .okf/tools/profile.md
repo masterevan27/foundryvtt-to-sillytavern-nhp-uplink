@@ -1,6 +1,6 @@
-# Project documentation profile 1.0.0
+# Project documentation profile 1.1.0
 
-This is the portable house policy carried by project-okf-tools 0.1.0. It targets
+This is the portable house policy carried by project-okf-tools 0.2.0. It targets
 [OKF v0.2 at the pinned revision](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/0b87c52c6ef999286c745e19998fdfcd03d5dbee/SPEC.md).
 The JSON lock is profile.json. Upstream conformance and house requirements are
 distinct: this checker enforces the house requirements as well as basic OKF.
@@ -50,6 +50,12 @@ A review deadline is a prompt to inspect the facts, not permission to auto-renew
 the date. Suggested review intervals: operations 90 days, architecture 180 days;
 historical decisions do not expire just because they are old. Update affected
 docs alongside behavior changes rather than waiting for the deadline.
+
+Profile 1.1.0 adds advisory warnings, never errors, for concepts that are not
+deprecated: provenance when generated is absent, and for Runbooks evidence when
+sources is absent and freshness when stale_after is absent. Resolve them with
+real provenance, citations and deadlines; never satisfy them with invented
+metadata. Backfill generated from commit history or the known author only.
 
 ## Navigation and links
 

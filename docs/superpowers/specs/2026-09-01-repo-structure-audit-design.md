@@ -2,6 +2,13 @@
 type: "Design"
 title: "Repo Structure Audit — Design"
 description: "Design decisions and requirements for Repo Structure Audit."
+status: stable
+tags:
+  - repository
+  - architecture
+generated:
+  by: claude-code/claude-opus-5
+  at: 2026-09-02T00:14:50-04:00
 ---
 # Repo Structure Audit — Design
 

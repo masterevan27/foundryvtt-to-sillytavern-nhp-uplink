@@ -92,3 +92,21 @@ yarn-error.log*
 pnpm-debug.log*
 # <<< shared baseline <<<
 /.obsidianignore
+
+# >>> AI agent local state (never commit) >>>
+# Agent folders hold sessions, worktrees, memory, settings, skills and scratch
+# that can include transcripts, machine paths or credentials. Keep them local.
+.claude/
+CLAUDE.local.md
+.codex/
+.codex-attachments/
+.agents/
+.superpowers/
+.worktrees/
+.cursor/
+.gemini/
+.windsurf/
+.continue/
+.serena/
+.aider*
+# <<< AI agent local state <<<

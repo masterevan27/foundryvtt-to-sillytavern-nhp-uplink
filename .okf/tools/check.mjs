@@ -11,7 +11,7 @@ function datetime(value) {
     return month >= 1 && month <= 12 && day >= 1 && day <= days && hour < 24 && minute < 60 && second < 60 && zoneHour <= 23 && zoneMinute < 60;
 }
 
-function metadataChecks(doc, now, add) {
+export function metadataChecks(doc, now, add) {
     const m = doc.metadata;
     for (const field of ['type', 'title', 'description']) {
         if (!nonempty(m[field])) add('required-field', `${field} must be a nonempty string.`);
@@ -139,8 +139,8 @@ function logChecks(body, add) {
     if (!dates) add('log-structure', 'A log needs at least one dated group of list entries.');
 }
 
-export function check(project, { now = new Date(), proposedDocuments = new Map() } = {}) {
-    const bundle = loadBundle(project);
+export function check(project, { now = new Date(), proposedDocuments = new Map(), assumeProfile } = {}) {
+    const bundle = loadBundle(project, { assumeProfile });
     const output = [...bundle.diagnostics];
     if (!bundle.config) return output;
     for (const [file, content] of proposedDocuments) {

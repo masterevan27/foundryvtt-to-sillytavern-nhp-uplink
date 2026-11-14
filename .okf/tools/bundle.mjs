@@ -93,7 +93,7 @@ export function resolveLink(bundle, source, href) {
     return { absolute, fragment, exists: fs.existsSync(absolute) };
 }
 
-export function loadBundle(project) {
+export function loadBundle(project, { assumeProfile } = {}) {
     project = fs.realpathSync(project);
     const diagnostics = [];
     const documents = new Map();
@@ -106,7 +106,7 @@ export function loadBundle(project) {
         for (const key of Object.keys(config)) {
             if (!['profile', 'bundle', 'legacy', 'missingLinks'].includes(key)) throw new Error(`Unknown configuration key: ${key}`);
         }
-        if (config.profile !== profile.profile) throw new Error(`Use profile ${profile.profile}; found ${config.profile}.`);
+        if (config.profile !== profile.profile && !(assumeProfile !== undefined && config.profile === assumeProfile)) throw new Error(`Use profile ${profile.profile}; found ${config.profile}.`);
         if (!nonempty(config.bundle) || config.bundle.includes('\\') || config.bundle.includes(':') || path.isAbsolute(config.bundle)) throw new Error('bundle must be a relative POSIX directory.');
         const root = path.resolve(project, config.bundle);
         if (root === project || !within(project, root)) throw new Error('bundle must be a directory inside the repository.');
